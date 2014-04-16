@@ -9,7 +9,7 @@ define('WATER', -4);
 define('UNSEEN', -5);
 
 /**
- * 
+ * Ants
  */
 class Ants
 {
