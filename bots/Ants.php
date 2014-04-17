@@ -13,30 +13,82 @@ define('FOOD', -3);
 define('WATER', -4);
 define('UNSEEN', -5);
 
+define('DS', DIRECTORY_SEPARATOR);
+
+// debug level
+// 0 - off
+define('LOG_NONE', 0);
+
+// 1 - GENERAL
+define('LOG_BASE', 1);
+
+define('LOG_ALL', 255);
+
+define('LOG_DEFAULT', 255);
+
+define('DEBUG_LOG_DIR', 'bot_logs');
+define('DEBUG_FILENAME_PREFIX', 'bot');
+define('DEBUG_FILENAME_EXTENSION', 'log');
 
 class Ant {
 	
+	static $instance = 1; 
+	
 	protected $id;
-	
 	protected $pos;
-	
 	protected $name;	
 
-	static $instance = 1; 
+	protected $logfile;
+	protected $logStream;
+	protected $debug = LOG_DEFAULT;
 	
 	/**
 	 * 
 	 * @param array $args
 	 */
 	function __construct($args){
-		$this->id = Ant::$instance++;
+		
+		$this->id = (isset($args['id'])) ? $args['id'] : Ant::$instance++;
+		
+		$this->name = (isset($args['name'])) ?  $args['name'] : 'Ant #' . $this->id;
 		
 		$this->pos = array(
 			$args['row'],
 			$args['col']
 		);
+
+		if (isset($args['debug'])) {
+			$this->debug = $args['debug'];
+		}
 		
-		$this->name = (isset($args['name'])) ?  $args['name'] : 'Ant #' . $this->id;
+		$this->logfile =  DEBUG_LOG_DIR . DS . DEBUG_FILENAME_PREFIX . $this->id . '.' . DEBUG_FILENAME_EXTENSION;
+		
+		if ($this->debug && 0) {
+			$this->logfile =  './' .DEBUG_LOG_DIR . DS . DEBUG_FILENAME_PREFIX . $this->id . '.' . DEBUG_FILENAME_EXTENSION;
+			
+			// the first log message doesn't use log() because it only appends
+			$this->logStream = fopen($this->logfile, 'w+');
+
+			if (!$this->logStream) {
+				throw new Exception('Log stream open failed. ' . $this->logfile);
+			}
+		} else {
+			$this->logStream = STDERR;
+		}
+		
+		$msg = "Bot " . $this->name . " (" . $this->id . ") Initialized\n";
+		fwrite($this->logStream, $msg, strlen($msg)); 		
+	}
+	
+	/**
+	 * __destruct
+	 * 
+	 * @param array $args
+	 */
+	function __destruct() {
+		if ($this->logStream) {
+			fclose($this->logStream);
+		}
 	}
 	
 	/**
@@ -96,6 +148,15 @@ class Ant {
 		return $str;
     } 	
 
+	/**
+	 * 
+	 */
+	protected function log($msg, $msgType = LOG_DEFAULT) {
+		if ($this->debug & $msgType) {
+			$msg .= "\n";
+			fwrite($this->logStream, $msg, strlen($msg)); 
+		}
+	}
 } // end Ant
 
 /**
@@ -259,9 +320,13 @@ class Ants {
     {
         list($dRow, $dCol) = $this->AIM[$direction];
         $nRow = ($row + $dRow) % $this->rows;
-        $nCol = ($col +$dCol) % $this->cols;
-        if ($nRow < 0) $nRow += $this->rows;
-        if ($nCol < 0) $nCol += $this->cols;
+        $nCol = ($col + $dCol) % $this->cols;
+        if ($nRow < 0) { 
+			$nRow += $this->rows;
+		}
+        if ($nCol < 0) {
+			$nCol += $this->cols;
+		}
         return array( $nRow, $nCol );
     }
 
