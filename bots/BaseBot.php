@@ -13,7 +13,7 @@ class BaseBot {
      */
     public function doTurn($ants)     {
         foreach ($ants->myAnts as $ant) {
-            list ($aRow, $aCol) = $ant;
+            list ($aRow, $aCol) = $ant->pos;
             foreach ($this->directions as $direction) {
                 list($dRow, $dCol) = $ants->destination($aRow, $aCol, $direction);
                 if ($ants->passable($dRow, $dCol)) {

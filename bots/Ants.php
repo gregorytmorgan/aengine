@@ -13,6 +13,91 @@ define('FOOD', -3);
 define('WATER', -4);
 define('UNSEEN', -5);
 
+
+class Ant {
+	
+	protected $id;
+	
+	protected $pos;
+	
+	protected $name;	
+
+	static $instance = 1; 
+	
+	/**
+	 * 
+	 * @param array $args
+	 */
+	function __construct($args){
+		$this->id = Ant::$instance++;
+		
+		$this->pos = array(
+			$args['row'],
+			$args['col']
+		);
+		
+		$this->name = (isset($args['name'])) ?  $args['name'] : 'Ant #' . $this->id;
+	}
+	
+	/**
+	 * 
+	 */
+    public function __set($name, $value) {
+		switch ($name) {
+			case 'row':
+				if (!is_numeric($value)) {
+					throw Exception('Non numeric value for Ant.row');
+				}
+				$this->pos[0] = $value;
+				break;
+			case 'col':
+				if (!is_numeric($value)) {
+					throw Exception('Non numeric value for Ant.row');
+				}				
+				$this->pos[1] = $value;
+				break;
+			default:
+				$this->$name = $value;
+		}
+		 
+		return $value;
+    }
+
+	/**
+	 * 
+	 */	
+    public function __get($name) {
+		switch ($name) {
+			case 'row':
+				$retval = $this->pos[0];
+				break;
+			case 'col':
+				$retval = $this->pos[1];
+				break;
+			default:
+				if (!isset($this->$name)) {
+					$trace = debug_backtrace();
+					trigger_error("Undefined property via __get(): $name in " . $trace[0]['file'] . " on line " . $trace[0]['line'], E_USER_NOTICE);
+					return null;
+				}	
+				$retval =  $this->$name;
+		}
+
+		 return $retval;
+    }
+
+	/**
+	 * 
+	 * @return string
+	 */
+    public function __toString(){
+		$str =  $this->name . ' ('.  $this->id . "), ";
+		$str .= "Pos: " . $this->pos[0] . ', ' . $this->pos[1] . "\n";;
+		return $str;
+    } 	
+
+} // end Ant
+
 /**
  * Ants
  */
@@ -86,32 +171,31 @@ class Ants {
     /** not tested */
 
     /**
-     *
+     * update
      * 
      */
-    public function update($data)
-    {
+    public function update($data) {
         // clear ant and food data
-        foreach ( $this->myAnts as $ant ) {
-            list($row,$col) = $ant;
+        foreach ($this->myAnts as $ant) {
+            list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
         $this->myAnts = array();
 
-        foreach ( $this->enemyAnts as $ant ) {
-            list($row,$col) = $ant;
+        foreach ($this->enemyAnts as $ant) {
+            list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
         $this->enemyAnts = array();
 
-        foreach ( $this->deadAnts as $ant ) {
-            list($row,$col) = $ant;
+        foreach ($this->deadAnts as $ant ) {
+            list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
         $this->deadAnts = array();
 
-        foreach ( $this->food as $ant ) {
-            list($row,$col) = $ant;
+        foreach ($this->food as $ant) {
+            list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
         $this->food = array();
@@ -131,9 +215,9 @@ class Ants {
                         $owner = (int)$tokens[3];
                         $this->map[$row][$col] = $owner;
                         if( $owner === 0) {
-                            $this->myAnts []= array($row,$col);
+                            $this->myAnts[]= new Ant(array('row' => $row, 'col' => $col));
                         } else {
-                            $this->enemyAnts []= array($row,$col);
+                            $this->enemyAnts[]= new Ant(array('row' => $row, 'col' => $col));
                         }
                     } elseif ($tokens[0] == 'f') {
                         $this->map[$row][$col] = FOOD;
