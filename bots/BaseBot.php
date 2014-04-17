@@ -5,15 +5,13 @@ require_once 'Ants.php';
 /**
  * GTM Bot
  */
-class GTMBot
-{
+class BaseBot {
     private $directions = array('n','e','s','w');
 
     /**
      * doTurn
      */
-    public function doTurn($ants)
-    {
+    public function doTurn($ants)     {
         foreach ($ants->myAnts as $ant) {
             list ($aRow, $aCol) = $ant;
             foreach ($this->directions as $direction) {
@@ -25,12 +23,7 @@ class GTMBot
             }
         }
     }
-    
+
 }
 
-/**
- * Don't run bot when unit-testing
- */
-if( !defined('PHPUnit_MAIN_METHOD') ) {
-    Ants::run( new GTMBot() );
-}
+// end file

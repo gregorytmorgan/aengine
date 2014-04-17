@@ -180,6 +180,15 @@ class Ants
         return array( $nRow, $nCol );
     }
 
+	/**
+	 * Distance between two cells
+	 *
+	 * @param integer $row1
+	 * @param integer $col1
+	 * @param integer $row2
+	 * @param integer $col2
+	 * @return integer
+	 */
     public function distance($row1, $col1, $row2, $col2) {
         $dRow = abs($row1 - $row2);
         $dCol = abs($col1 - $col2);
@@ -235,6 +244,11 @@ class Ants
     }
 
 
+	/**
+	 * Start the strdin loop
+	 *
+	 * @param Ant $bot
+	 */
     public static function run($bot)
     {
         $ants = new Ants();
