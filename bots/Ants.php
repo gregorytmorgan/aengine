@@ -1,4 +1,9 @@
 <?php
+// sudo pear install --alldeps pear.php.net/Math_Vector-0.7.0
+require_once "Math/Vector.php";
+require_once "Math/Vector2.php";
+require_once "Math/Vector3.php";
+require_once "Math/VectorOp.php";
 
 define('MY_ANT', 0);
 define('ANTS', 0);
@@ -11,8 +16,7 @@ define('UNSEEN', -5);
 /**
  * Ants
  */
-class Ants
-{
+class Ants {
     public $turns = 0;
     public $rows = 0;
     public $cols = 0;
@@ -52,21 +56,18 @@ class Ants
         );
 
 
-    public function issueOrder($aRow, $aCol, $direction)
-    {
+    public function issueOrder($aRow, $aCol, $direction) {
         printf("o %s %s %s\n", $aRow, $aCol, $direction);
         flush();
     }
 
-    public function finishTurn()
-    {
+    public function finishTurn() {
         echo("go\n");
         flush();
     }
     
-    public function setup($data)
-    {
-        foreach ( $data as $line) {
+    public function setup($data) {
+        foreach ($data as $line) {
             if (strlen($line) > 0) {
                 $tokens = explode(' ',$line);
                 $key = $tokens[0];
@@ -75,8 +76,8 @@ class Ants
                 }
             }
         }
-        for ( $row=0; $row < $this->rows; $row++) {
-            for ( $col=0; $col < $this->cols; $col++) {
+        for ($row = 0; $row < $this->rows; $row++) {
+            for ($col = 0; $col < $this->cols; $col++) {
                 $this->map[$row][$col] = LAND;
             }
         }
@@ -243,32 +244,29 @@ class Ants
 
     }
 
-
 	/**
 	 * Start the strdin loop
 	 *
 	 * @param Ant $bot
 	 */
-    public static function run($bot)
-    {
-        $ants = new Ants();
-        $map_data = array();
-        while(true) {
-            $current_line = fgets(STDIN,1024);
-            $current_line = trim($current_line);
-            if ($current_line === 'ready') {
-                $ants->setup($map_data);
-                $ants->finishTurn();
-                $map_data = array();
-            } elseif ($current_line === 'go') {
-                $ants->update($map_data);
-                $bot->doTurn($ants);
-                $ants->finishTurn();
-                $map_data = array();
-            } else {
-                $map_data []= $current_line;
-            }
-        }
-
-    }
-    }
+    public static function run($bot){
+		$ants = new Ants();
+		$map_data = array();
+		while(true) {
+			$current_line = fgets(STDIN,1024);
+			$current_line = trim($current_line);
+			if ($current_line === 'ready') {
+				$ants->setup($map_data);
+				$ants->finishTurn();
+				$map_data = array();
+			} elseif ($current_line === 'go') {
+				$ants->update($map_data);
+				$bot->doTurn($ants);
+				$ants->finishTurn();
+				$map_data = array();
+			} else {
+				$map_data []= $current_line;
+			}
+		}
+	}
+}
