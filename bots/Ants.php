@@ -5,6 +5,9 @@ require_once "Math/Vector2.php";
 require_once "Math/Vector3.php";
 require_once "Math/VectorOp.php";
 
+require_once "AntLogger.php";
+require_once "Ant.php";
+
 define('MY_ANT', 0);
 define('ANTS', 0);
 define('DEAD', -1);
@@ -13,157 +16,12 @@ define('FOOD', -3);
 define('WATER', -4);
 define('UNSEEN', -5);
 
-define('DS', DIRECTORY_SEPARATOR);
-
-// debug level
-// 0 - off
-define('LOG_NONE', 0);
-
-// 1 - GENERAL
-define('LOG_BASE', 1);
-
-define('LOG_ALL', 255);
-
-define('LOG_DEFAULT', 255);
-
-define('DEBUG_LOG_DIR', 'bot_logs');
-define('DEBUG_FILENAME_PREFIX', 'bot');
-define('DEBUG_FILENAME_EXTENSION', 'log');
-
-class Ant {
-	
-	static $instance = 1; 
-	
-	protected $id;
-	protected $pos;
-	protected $name;	
-
-	protected $logfile;
-	protected $logStream;
-	protected $debug = LOG_DEFAULT;
-	
-	/**
-	 * 
-	 * @param array $args
-	 */
-	function __construct($args){
-		
-		$this->id = (isset($args['id'])) ? $args['id'] : Ant::$instance++;
-		
-		$this->name = (isset($args['name'])) ?  $args['name'] : 'Ant #' . $this->id;
-		
-		$this->pos = array(
-			$args['row'],
-			$args['col']
-		);
-
-		if (isset($args['debug'])) {
-			$this->debug = $args['debug'];
-		}
-		
-		$this->logfile =  DEBUG_LOG_DIR . DS . DEBUG_FILENAME_PREFIX . $this->id . '.' . DEBUG_FILENAME_EXTENSION;
-		
-		if ($this->debug && 0) {
-			$this->logfile =  './' .DEBUG_LOG_DIR . DS . DEBUG_FILENAME_PREFIX . $this->id . '.' . DEBUG_FILENAME_EXTENSION;
-			
-			// the first log message doesn't use log() because it only appends
-			$this->logStream = fopen($this->logfile, 'w+');
-
-			if (!$this->logStream) {
-				throw new Exception('Log stream open failed. ' . $this->logfile);
-			}
-		} else {
-			$this->logStream = STDERR;
-		}
-		
-		$msg = "Bot " . $this->name . " (" . $this->id . ") Initialized\n";
-		fwrite($this->logStream, $msg, strlen($msg)); 		
-	}
-	
-	/**
-	 * __destruct
-	 * 
-	 * @param array $args
-	 */
-	function __destruct() {
-		if ($this->logStream) {
-			fclose($this->logStream);
-		}
-	}
-	
-	/**
-	 * 
-	 */
-    public function __set($name, $value) {
-		switch ($name) {
-			case 'row':
-				if (!is_numeric($value)) {
-					throw Exception('Non numeric value for Ant.row');
-				}
-				$this->pos[0] = $value;
-				break;
-			case 'col':
-				if (!is_numeric($value)) {
-					throw Exception('Non numeric value for Ant.row');
-				}				
-				$this->pos[1] = $value;
-				break;
-			default:
-				$this->$name = $value;
-		}
-		 
-		return $value;
-    }
-
-	/**
-	 * 
-	 */	
-    public function __get($name) {
-		switch ($name) {
-			case 'row':
-				$retval = $this->pos[0];
-				break;
-			case 'col':
-				$retval = $this->pos[1];
-				break;
-			default:
-				if (!isset($this->$name)) {
-					$trace = debug_backtrace();
-					trigger_error("Undefined property via __get(): $name in " . $trace[0]['file'] . " on line " . $trace[0]['line'], E_USER_NOTICE);
-					return null;
-				}	
-				$retval =  $this->$name;
-		}
-
-		 return $retval;
-    }
-
-	/**
-	 * 
-	 * @return string
-	 */
-    public function __toString(){
-		$str =  $this->name . ' ('.  $this->id . "), ";
-		$str .= "Pos: " . $this->pos[0] . ', ' . $this->pos[1] . "\n";;
-		return $str;
-    } 	
-
-	/**
-	 * 
-	 */
-	protected function log($msg, $msgType = LOG_DEFAULT) {
-		if ($this->debug & $msgType) {
-			$msg .= "\n";
-			fwrite($this->logStream, $msg, strlen($msg)); 
-		}
-	}
-} // end Ant
-
 /**
  * Ants
  */
 class Ants {
     public $turns = 0;
+	public $turn = 1;
     public $rows = 0;
     public $cols = 0;
     public $loadtime = 0;
@@ -173,6 +31,7 @@ class Ants {
     public $spawnradius2 = 0;
     public $map;
     public $myAnts = array();
+	public $nMyAnts = 0;
     public $enemyAnts = array();
     public $myHills = array();
     public $enemyHills = array();
@@ -202,17 +61,32 @@ class Ants {
         );
 
 
+	protected $logger = null;
+	
+	/**
+	 * 
+	 * @param array $args
+	 */
+	function __construct($args = array()) {
+		$this->logger = new AntLogger();
+	}
+	
     public function issueOrder($aRow, $aCol, $direction) {
         printf("o %s %s %s\n", $aRow, $aCol, $direction);
         flush();
     }
 
     public function finishTurn() {
+		$this->logger->write("Finished turn " . $this->turn);	
         echo("go\n");
+		$this->turn++;
         flush();
     }
     
     public function setup($data) {
+		
+		$this->logger->write("Starting setup processing start for turn " . $this->turn);		
+		
         foreach ($data as $line) {
             if (strlen($line) > 0) {
                 $tokens = explode(' ',$line);
@@ -236,12 +110,15 @@ class Ants {
      * 
      */
     public function update($data) {
+		
+		$this->logger->write("Starting update processing start for turn " . $this->turn);
+				
         // clear ant and food data
         foreach ($this->myAnts as $ant) {
             list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
-        $this->myAnts = array();
+        //$this->myAnts = array();
 
         foreach ($this->enemyAnts as $ant) {
             list($row,$col) = $ant->pos;
@@ -259,13 +136,13 @@ class Ants {
             list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
+		
         $this->food = array();
-        
         $this->myHills = array();
         $this->enemyHills = array();
 
         # update map and create new ant and food lists
-        foreach ( $data as $line) {
+        foreach ($data as $line) {
             if (strlen($line) > 0) {
                 $tokens = explode(' ',$line);
 
@@ -275,10 +152,20 @@ class Ants {
                     if ($tokens[0] == 'a') {
                         $owner = (int)$tokens[3];
                         $this->map[$row][$col] = $owner;
-                        if( $owner === 0) {
-                            $this->myAnts[]= new Ant(array('row' => $row, 'col' => $col));
+                        if($owner === 0) {
+							if ($this->turn === 1) {
+								$ant = new Ant(array('row' => $row, 'col' => $col, 'owner' => $owner));
+								$this->addAnt($ant);
+							} else {
+								$ant = $this->lookupAnt($row, $col, $owner);
+								if ($ant) {
+									$ant->pos = array($row, $col);
+								} else {
+									$this->logger->write('Lost ant at $row, $col');
+								}
+							}
                         } else {
-                            $this->enemyAnts[]= new Ant(array('row' => $row, 'col' => $col));
+                            $this->enemyAnts[]= new Ant(array('row' => $row, 'col' => $col, 'owner' => $owner));
                         }
                     } elseif ($tokens[0] == 'f') {
                         $this->map[$row][$col] = FOOD;
@@ -393,6 +280,56 @@ class Ants {
 
     }
 
+	/**
+	 * Add an Ant
+	 * 
+	 * @param object $ant
+	 * @return boolean Return an Ant object on success, false otherwise;
+	 */
+	public function addAnt($ant) {
+		$this->myAnts[] = $ant;
+		$this->nMyAnts++;
+	}
+	
+	/**
+	 * Lookup an Ant
+	 * 
+	 * @param integer|array $arg1
+	 * @param integer $arg2
+	 * @return object|null Return an Ant object on success, false otherwise;
+	 */
+	public function lookupAnt($arg1, $arg2 = null) {
+		if (is_array($arg1)) {
+			$row = (isset($arg1['row']) ? $arg1['row'] : $arg1[0]);
+			$col = (isset($arg1['col']) ? $arg1['col'] : $arg1[0]);
+		} else {
+			$row = $arg1;
+			$col = $arg2;
+		}
+
+$this->logger->write('cnt : ' .  count($this->myAnts));
+$this->logger->write('n : ' .  $this->nMyAnts);
+//$this->logger->write(var_export($this->myAnts, true));
+		
+		for ($i = 0; $i < $this->nMyAnts; $i++) {
+			$ant = $this->myAnts[$i];
+			if ($ant->row === $row && $ant->col == $col) {
+				return $ant;
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Start the strdin loop
+	 *
+	 * @param Ant $bot
+	 */
+    public static function dumpMap() {
+		
+	}
+	
 	/**
 	 * Start the strdin loop
 	 *
