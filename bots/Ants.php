@@ -126,7 +126,7 @@ class Ants {
         }
         $this->enemyAnts = array();
 
-        foreach ($this->deadAnts as $ant ) {
+        foreach ($this->deadAnts as $ant) {
             list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
@@ -136,12 +136,16 @@ class Ants {
             list($row,$col) = $ant->pos;
             $this->map[$row][$col] = LAND;
         }
-		
+
         $this->food = array();
         $this->myHills = array();
         $this->enemyHills = array();
 
-        # update map and create new ant and food lists
+		// turn input processing
+		//
+        // update map and create new ant and food lists
+		//
+		// store long term?
         foreach ($data as $line) {
             if (strlen($line) > 0) {
                 $tokens = explode(' ',$line);
@@ -149,7 +153,7 @@ class Ants {
                 if (count($tokens) >= 3) {
                     $row = (int)$tokens[1];
                     $col = (int)$tokens[2];
-                    if ($tokens[0] == 'a') {
+                    if ($tokens[0] == 'a') {				// a = live ant, format: w row col owner
                         $owner = (int)$tokens[3];
                         $this->map[$row][$col] = $owner;
                         if($owner === 0) {
@@ -167,17 +171,17 @@ class Ants {
                         } else {
                             $this->enemyAnts[]= new Ant(array('row' => $row, 'col' => $col, 'owner' => $owner));
                         }
-                    } elseif ($tokens[0] == 'f') {
+                    } elseif ($tokens[0] == 'f') {			// f = food, format: w row col
                         $this->map[$row][$col] = FOOD;
                         $this->food []= array($row, $col);
-                    } elseif ($tokens[0] == 'w') {
+                    } elseif ($tokens[0] == 'w') {			// w = water, format: w row col
                         $this->map[$row][$col] = WATER;
-                    } elseif ($tokens[0] == 'd') {
+                    } elseif ($tokens[0] == 'd') {			// dead ant, format: w row col owner
                         if ($this->map[$row][$col] === LAND) {
                             $this->map[$row][$col] = DEAD;
                         }
                         $this->deadAnts []= array($row,$col);
-                    } elseif ($tokens[0] == 'h') {
+                    } elseif ($tokens[0] == 'h') {			// h = hill, format: w row col owner
                         $owner = (int)$tokens[3];
                         if ($owner === 0) {
                             $this->myHills []= array($row,$col);
@@ -191,8 +195,7 @@ class Ants {
     }
 
 
-    public function passable($row, $col)
-    {
+    public function passable($row, $col) {
         return $this->map[$row][$col] > WATER;
     }
 
@@ -203,8 +206,7 @@ class Ants {
     /**
      *
      */
-    public function destination($row, $col, $direction)
-    {
+    public function destination($row, $col, $direction) {
         list($dRow, $dCol) = $this->AIM[$direction];
         $nRow = ($row + $dRow) % $this->rows;
         $nCol = ($col + $dCol) % $this->cols;
