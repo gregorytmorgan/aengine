@@ -20,4 +20,5 @@ echo $ant1;
 $ant2 = new Ant(array('row' => 10, 'col' => 10));
 echo $ant2;
 
-
+$ant2->pos = array(20, 20);
+echo $ant2;
