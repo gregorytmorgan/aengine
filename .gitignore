@@ -1,6 +1,7 @@
 /nbproject
 /tools/game_logs
 *.pyc
+*.log
 /logs
 /bots/bot_logs
 
