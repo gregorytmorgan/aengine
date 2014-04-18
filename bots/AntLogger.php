@@ -1,22 +1,27 @@
 <?php
 define('DS', DIRECTORY_SEPARATOR);
 
-// debug level
-// 0 - off
-
-// 1 - GENERAL
-define('LOG_BASE', 1);
-define('LOG_ALL', 255);
-define('LOG_NONE', 0);
-define('LOG_DEFAULT', 255);
-define('LOG_FILENAME_PREFIX', 'ant');
-define('LOG_FILENAME_EXTENSION', 'log');
-
 /**
  * 
  */
 class AntLogger {
 	protected $resource;
+
+	const LOG_NONE = 0;
+	const LOG_GAME_FLOW = 1;
+	const LOG_MAPDUMP = 2;
+	const LOG_GAMEDUMP = 4;
+	const LOG_BOT = 8;
+	const LOG_INPUT = 16;
+	const LOG_OUTPUT = 32;
+	const LOG_INFO = 64;
+	const LOG_WARN = 128;
+	const LOG_ERROR = 256;
+
+	const LOG_ALL = 4095;
+
+	const LOG_FILENAME_PREFIX = 'ant';
+	const LOG_FILENAME_EXTENSION = 'log';
 
 	/**
 	 * __construct
@@ -24,7 +29,9 @@ class AntLogger {
 	 * @param array $args
 	 */
 	function __construct($args = array()){
-		
+
+		$this->logLevel = (isset($args['logLevel'])) ? $args['logLevel'] : self::LOG_ALL;
+
 		if (isset($args['output'])) {
 			if (is_string($args['output'])) {
 				$this->resource = fopen($args['output'], 'a+');
@@ -34,7 +41,7 @@ class AntLogger {
 			  throw new Exception ('Invalid logger output target.');	
 			}
 		} else {
-			$this->resource = fopen(LOG_FILENAME_PREFIX . '.' . LOG_FILENAME_EXTENSION, 'a+');
+			$this->resource = fopen(self::LOG_FILENAME_PREFIX . '.' . self::LOG_FILENAME_EXTENSION, 'a+');
 		}
 	}
 	
@@ -42,10 +49,18 @@ class AntLogger {
 	 * write
 	 * 
 	 * @param string $msg
+	 * @param string $grp Bitmask of AntLogger log group constants
+	 * @param array $opts <pre>
+	 *		addEndline: boolean, default = true
+	 * <pre>
 	 */
-	public function write($msg) {
-		$msg .= "\n";
-		fwrite($this->resource, $msg, strlen($msg)); 
+	public function write($msg, $grp = self::LOG_ALL, $opt = array('noEndline' => false)) {
+		if (!$opt['noEndline']) {
+			$msg .= "\n";
+		}
+		if ($this->logLevel & $grp) {
+			fwrite($this->resource, $msg, strlen($msg));
+		}
 	}
 
 	/**
