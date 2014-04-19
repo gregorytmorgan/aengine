@@ -339,7 +339,7 @@ class Ants {
 	 * @return boolean Return an Ant object on success, false otherwise;
 	 */
 	public function addAnt($ant) {
-		if ($ant->owner === 0) {
+		if ($ant->owner !== 0) {
 			$this->logger->write('Ants.addAnt() - Not my ant', AntLogger::LOG_ERROR);
 		}
 		$this->myAnts[] = $ant;
