@@ -1,6 +1,6 @@
 <?php
 
-require_once 'Missions.php';
+require_once 'Mission.php';
 
 /**
  * 
