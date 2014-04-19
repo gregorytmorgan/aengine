@@ -61,7 +61,8 @@ class Ants {
         );
 
 	/**
-	 *
+	 * Logger
+	 * 
 	 * @var AntLogger
 	 */
 	protected $logger = null;
@@ -72,7 +73,7 @@ class Ants {
 	 */
 	function __construct($args = array()) {
 		$this->logger = new AntLogger(array(
-			'logLevel' =>  AntLogger::LOG_ALL - AntLogger::LOG_MAPDUMP - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT
+			'logLevel' =>  AntLogger::LOG_ALL - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT // - AntLogger::LOG_MAPDUMP
 		));
 	}
 	
@@ -205,9 +206,8 @@ class Ants {
                 } // tokens >- 3
             } // not empty line
         } // each line
-		$this->logger->write("pdate processing for turn " . $this->turn . " complete", AntLogger::LOG_GAME_FLOW);
+		$this->logger->write("Update processing for turn " . $this->turn . " complete", AntLogger::LOG_GAME_FLOW);
     }
-
 
     public function passable($row, $col) {
         return $this->map[$row][$col] > WATER;
@@ -234,7 +234,7 @@ class Ants {
     }
 
 	/**
-	 * Distance between two cells
+	 * Distance between two cells taking into account board wrapping
 	 *
 	 * @param integer $row1
 	 * @param integer $col1
@@ -253,8 +253,14 @@ class Ants {
     }
 
     /**
-     * calc the direction(n,s,e,w) based on current square and next square
-     */
+	 * Calc the direction(n, r, s, w) based on current square and next square.
+     * 
+	 * @param intger $row1
+	 * @param intger $col1
+	 * @param intger $row2
+	 * @param intger $col2
+	 * @return string
+	 */
     public function direction($row1, $col1, $row2, $col2) {
         $d = array();
         $row1 = $row1 % $this->rows;
@@ -412,14 +418,14 @@ class Ants {
 	}
 
 	/**
-	 * Start the strdin loop
+	 * Main game loop
 	 *
 	 * @param Ant $bot
 	 */
     public static function run($bot){
 		$ants = new Ants();
 		$map_data = array();
-		while(true) {
+		while (true) {
 			$current_line = fgets(STDIN,1024);
 			$current_line = trim($current_line);
 			if ($current_line === 'ready') {
@@ -432,7 +438,7 @@ class Ants {
 				$ants->finishTurn();
 				$map_data = array();
 			} else {
-				$map_data []= $current_line;
+				$map_data[] = $current_line;
 			}
 		}
 	}

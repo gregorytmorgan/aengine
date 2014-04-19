@@ -1,4 +1,7 @@
 <?php
+
+require_once 'Missions.php';
+
 /**
  * 
  */
@@ -13,6 +16,7 @@ class Ant {
 	protected $owner;
 	protected $logger;
 	protected $debug;
+	protected $mission;
 
 	const DEBUG_LEVEL_DEFAULT = 4095;
 
@@ -24,7 +28,7 @@ class Ant {
 		
 		$this->id = (isset($args['id'])) ? $args['id'] : Ant::$instance++;
 		
-		$this->name = (isset($args['name'])) ?  $args['name'] : 'Ant #' . $this->id;
+		$this->name = (isset($args['name'])) ?  $args['name'] : get_class($this) . ' #' . $this->id;
 	
 		$this->owner = (isset($args['owner'])) ?  $args['owner'] : -1;
 		
@@ -44,6 +48,8 @@ class Ant {
 //			'output' => STDERR
 		));
 		
+		$this->mission = (isset($args['mission'])) ? $args['id'] : new MissionGoNESW();		
+		
 		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_BOT);
 	}
 	
@@ -51,10 +57,6 @@ class Ant {
 	 * 
 	 */
     public function __set($name, $value) {
-
-
-//$this->logger->write('__set - entry ' . $name, AntLogger::LOG_ALL);
-
 		switch ($name) {
 			case 'row':
 				$this->ppos = $this->pos;
@@ -77,13 +79,16 @@ class Ant {
 			default:
 				$this->$name = $value;
 		}
-		 
+		
 		return $value;
     }
 
 	/**
+	 * __get
 	 * 
-	 */	
+	 * @param string $name
+	 * @return mixed
+	 */
     public function __get($name) {
 		switch ($name) {
 			case 'row':
@@ -111,10 +116,11 @@ class Ant {
     }
 
 	/**
+	 * __toString
 	 * 
 	 * @return string
 	 */
-    public function __toString(){
+    public function __toString (){
 		$str =  $this->name . ' ('.  $this->id . "), Pos: " . $this->pos[0] . ', ' . $this->pos[1];
 		return $str;
     } 	
@@ -122,11 +128,20 @@ class Ant {
 	/**
 	 * 
 	 */
-	function __destruct() {
+	function __destruct () {
 		if ($this->debug) {
 			$this->logger->write("Destroying " . $this->name);
 		}
 	}
-
+	
+    /**
+     * doTurn
+     */
+    public function doTurn ($ants) {
+		$result = $this->mission->takeAction($this, $ants); // ants = game state data
+		return $result;			
+	}	
+	
+	
 } // end Ant
 

@@ -12,11 +12,12 @@ class AntLogger {
 	const LOG_MAPDUMP = 2;
 	const LOG_GAMEDUMP = 4;
 	const LOG_BOT = 8;
-	const LOG_INPUT = 16;
-	const LOG_OUTPUT = 32;
-	const LOG_INFO = 64;
-	const LOG_WARN = 128;
-	const LOG_ERROR = 256;
+	const LOG_ANT = 16;	
+	const LOG_INPUT = 32;
+	const LOG_OUTPUT = 64;
+	const LOG_INFO = 128;
+	const LOG_WARN = 256;
+	const LOG_ERROR = 512;
 
 	const LOG_ALL = 4095;
 
