@@ -10,17 +10,18 @@ class BaseBot {
 
     /**
      * Bot turn loop
+	 * 
+	 * @param Ants $game The game data
      */
-    public function doTurn($ants) {
-        foreach ($ants->myAnts as $i => $ant) {
-			 $results = $ants->myAnts[$i]->doTurn($ants);
-			 
-//			 if ($command) {
-//				$ants->issueOrder($ant->row,  $ant->col, $command);
-//			 }
-			 
-			 //$ants->myAnts[$i]->pos = array();
-        } // each ant	
+    public function doTurn($game) {
+
+		$game->logger->write('doTurns for ' . $game->nMyAnts . ' ants.', AntLogger::LOG_GAME_FLOW);
+
+        foreach ($game->myAnts as $i => $ant) {
+			 $results = $game->myAnts[$i]->mission->doTurn($game->myAnts[$i], $game);
+        } // each ant
+
+		$game->logger->write('doTurns complete.', AntLogger::LOG_GAME_FLOW);
     } // doTurn
 
 }

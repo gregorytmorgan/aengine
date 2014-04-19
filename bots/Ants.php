@@ -16,6 +16,9 @@ define('FOOD', -3);
 define('WATER', -4);
 define('UNSEEN', -5);
 
+
+define('DEBUG_LEVEL', AntLogger::LOG_ALL);
+
 /**
  * Ants
  */
@@ -65,7 +68,7 @@ class Ants {
 	 * 
 	 * @var AntLogger
 	 */
-	protected $logger = null;
+	public $logger = null;
 	
 	/**
 	 * 
@@ -73,7 +76,7 @@ class Ants {
 	 */
 	function __construct($args = array()) {
 		$this->logger = new AntLogger(array(
-			'logLevel' =>  AntLogger::LOG_ALL - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT // - AntLogger::LOG_MAPDUMP
+			'logLevel' =>  DEBUG_LEVEL  // - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
 		));
 	}
 	
@@ -109,7 +112,7 @@ class Ants {
             }
         }
 
-		$this->dumpGame();
+		$this->dumpGame(AntLogger::LOG_GAME_FLOW);
     }
 
     /** not tested */
@@ -120,13 +123,13 @@ class Ants {
      */
     public function update($data) {
 		
-		$this->logger->write("Starting update processing for turn " . $this->turn, AntLogger::LOG_GAME_FLOW);
+		$this->logger->write("<GREEN>Starting update processing for turn " . $this->turn . '.</GREEN>', AntLogger::LOG_GAME_FLOW);
 
-		$this->logger->write("Raw Input", AntLogger::LOG_INPUT);
+		$this->logger->write("Raw Input - turn " . $this->turn, AntLogger::LOG_INPUT);
 		$this->logger->write("----------------", AntLogger::LOG_INPUT);
 		$this->logger->write(implode("\n", $data), AntLogger::LOG_INPUT);
 
-		$this->dumpTurn();
+		$this->dumpTurn(AntLogger::LOG_GAME_FLOW);
 
 		$this->dumpMap(AntLogger::LOG_MAPDUMP);
 
@@ -137,7 +140,7 @@ class Ants {
         }
 
         foreach ($this->enemyAnts as $ant) {
-            list($row, $col) = $ant->pos;
+            list($row, $col) = $ant; // $ant->pos;
             $this->map[$row][$col] = LAND;
         }
         $this->enemyAnts = array();
@@ -174,7 +177,12 @@ class Ants {
                         $this->map[$row][$col] = $owner;
                         if($owner === 0) {
 							if ($this->turn === 1) {
-								$ant = new Ant(array('row' => $row, 'col' => $col, 'owner' => $owner));
+								$ant = new Ant(array(
+									'row' => $row,
+									'col' => $col, 
+									'owner' => $owner,
+									'debug' => DEBUG_LEVEL
+								));
 								$this->addAnt($ant);
 							} else {
 								$ant = $this->lookupAnt($row, $col, $owner);
@@ -183,7 +191,8 @@ class Ants {
 								}
 							}
                         } else {
-                            $this->enemyAnts[]= new Ant(array('row' => $row, 'col' => $col, 'owner' => $owner));
+                            //$this->enemyAnts[]= new Ant(array('row' => $row, 'col' => $col, 'owner' => $owner));
+							$this->enemyAnts[] = array($row, $col); //new Ant(array('row' => $row, 'col' => $col, 'owner' => $owner));
                         }
                     } elseif ($tokens[0] == 'f') {			// f = food, format: w row col
                         $this->map[$row][$col] = FOOD;
@@ -340,7 +349,7 @@ class Ants {
 	}
 
 	/**
-	 * Start the strdin loop
+	 * Start the stdin loop
 	 *
 	 *	.   = land
 	 *	%   = water
@@ -411,10 +420,10 @@ class Ants {
 	 * @param Ant $bot
 	 */
     public function dumpTurn($grp = AntLogger::LOG_ALL) {
-		$this->logger->write('Turn ' . $this->turn . ' Initial State Summary', $grp);
+		$this->logger->write("\nTurn " . $this->turn . " Initial State Summary", $grp);
 		$this->logger->write('----------------', $grp);
 		$this->logger->write('My ants (' . $this->nMyAnts . '):', $grp);
-		$this->dumpAnts();
+		$this->dumpAnts($grp);
 	}
 
 	/**
@@ -434,7 +443,7 @@ class Ants {
 				$map_data = array();
 			} elseif ($current_line === 'go') {
 				$ants->update($map_data);
-				$bot->doTurn($ants);
+				$bot->doTurn($ants); // ants == game data
 				$ants->finishTurn();
 				$map_data = array();
 			} else {

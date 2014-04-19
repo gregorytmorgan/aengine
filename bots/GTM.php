@@ -7,7 +7,7 @@ require_once 'BaseBot.php';
  * GTM Bot
  */
 class GTMBot extends BaseBot {
-	// do something
+	// do something exta?
 }
 
 /**

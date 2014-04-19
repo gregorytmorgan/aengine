@@ -12,13 +12,13 @@ class Ant {
 	protected $id;
 	protected $pos;
 	protected $ppos;
-	protected $name;
+	public $name;
 	protected $owner;
 	protected $logger;
 	protected $debug;
-	protected $mission;
+	public $mission;
 
-	const DEBUG_LEVEL_DEFAULT = 4095;
+	const DEBUG_LEVEL_DEFAULT = AntLogger::LOG_ALL;
 
 	/**
 	 * 
@@ -45,12 +45,15 @@ class Ant {
 		);
 
 		$this->logger = new AntLogger(array(
+			'logLevel' => $this->debug,
 //			'output' => STDERR
 		));
+
+		$this->mission = (isset($args['mission'])) ? $args['id'] : new MissionGoNESW(array(
+			'debug' => $this->debug
+		));
 		
-		$this->mission = (isset($args['mission'])) ? $args['id'] : new MissionGoNESW();		
-		
-		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_BOT);
+		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_ANT);
 	}
 	
 	/**
@@ -121,7 +124,9 @@ class Ant {
 	 * @return string
 	 */
     public function __toString (){
-		$str =  $this->name . ' ('.  $this->id . "), Pos: " . $this->pos[0] . ', ' . $this->pos[1];
+		$str =  $this->name . ' ('.  $this->id . ")";
+		$str .= " Pos: " . $this->pos[0] . ', ' . $this->pos[1];
+		$str .= " Mission:" . $this->mission->name . "(" . $this->mission->getState()->name . ")";
 		return $str;
     } 	
 
@@ -134,13 +139,13 @@ class Ant {
 		}
 	}
 	
-    /**
-     * doTurn
-     */
-    public function doTurn ($ants) {
-		$result = $this->mission->takeAction($this, $ants); // ants = game state data
-		return $result;			
-	}	
+//    /**
+//     * doTurn
+//     */
+//    public function doTurn ($data) {
+//		$result = $this->mission->takeAction($this, $data); // ants = game state data
+//		return $result;
+//	}
 	
 	
 } // end Ant
