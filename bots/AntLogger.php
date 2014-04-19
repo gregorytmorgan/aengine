@@ -63,10 +63,11 @@ class AntLogger {
 	 * <pre>
 	 */
 	public function write($msg, $grp = self::LOG_ALL, $opt = array('noEndline' => false)) {
-		if (!$opt['noEndline']) {
-			$msg .= "\n";
-		}
 		if ($this->logLevel & $grp) {
+
+			if (!$opt['noEndline']) {
+				$msg .= "\n";
+			}
 
 			if ($grp === self::LOG_ERROR) {
 				$msg = self::RED . $msg . self::NO_COLOR;
@@ -78,7 +79,7 @@ class AntLogger {
 				$msg = str_replace('<GREEN>', self::GREEN, $msg);
 				$msg = str_replace(array('</RED>', '</YELLOW>', '</GREEN>'), self::NO_COLOR, $msg);
 			}
-
+			
 			fwrite($this->resource, $msg, strlen($msg));
 		}
 	}

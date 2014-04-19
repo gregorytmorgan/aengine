@@ -252,14 +252,16 @@ class MissionGoNESW extends Mission {
 			if ($passable) {
 				$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction, $dRow, $dCol), AntLogger::LOG_ANT);
 				$game->issueOrder($ant->row, $ant->col, $direction);
-				$ant->pos = array($dRow, $dCol);
+				//$game->map[$row][$col] = LAND;											// myMap->update()
+				$ant->pos = array($dRow, $dCol);										// myMap->update()
 				return $direction;
 			}
-
-			$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_ANT);
-			
-			return false;
 		} // directions
+
+		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_ANT);
+
+		return false;
+
 	} //move
 	
 }
