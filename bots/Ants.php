@@ -15,7 +15,6 @@ define('LAND', -2);
 define('FOOD', -3);
 define('WATER', -4);
 define('UNSEEN', -5);
-define('HIVE', -6);
 
 
 define('DEBUG_LEVEL', AntLogger::LOG_ALL);
@@ -24,6 +23,9 @@ define('DEBUG_LEVEL', AntLogger::LOG_ALL);
  * Ants
  */
 class Ants {
+
+	const Alpha = 'abcdefghijslmnopqrstuvwxyz';
+
     public $turns = 0;
 	public $turn = 1;
     public $rows = 0;
@@ -174,13 +176,13 @@ class Ants {
                     $col = (int)$tokens[2];
                     if ($tokens[0] == 'a') {				// a = live ant, format: w row col owner
                         $owner = (int)$tokens[3];
-                        $this->map[$row][$col] = $owner;
+                        $this->map[$row][$col] = mb_substr(self::Alpha, $owner, 1);
                         if($owner === 0) {
 							if ($this->turn === 1) {
 								$ant = new Ant(array(
 									'row' => $row,
 									'col' => $col, 
-									'owner' => $owner,
+									'owner' => (int)$owner,
 									'debug' => DEBUG_LEVEL,
 									'mission' => new MissionGoNESW(array(
 										'debug' => DEBUG_LEVEL
@@ -188,7 +190,7 @@ class Ants {
 								));
 								$this->addAnt($ant);
 							} else {
-								$ant = $this->lookupAnt($row, $col, $owner);
+								$ant = $this->lookupAnt($row, $col);
 								if (!$ant) {
 									$this->logger->write("Lost ant at $row, $col", AntLogger::LOG_ERROR);
 								}
@@ -223,9 +225,9 @@ class Ants {
                     } elseif ($tokens[0] == 'h') {			// h = hill, format: w row col owner
                         $owner = (int)$tokens[3];
                         if ($owner === 0) {
-                            $this->myHills []= array($row,$col);
+                            $this->myHills []= array($row, $col, $owner);
                         } else {
-                            $this->enemyHills []= array($row,$col);
+                            $this->enemyHills []= array($row, $col, $owner);
                         }
                     }
                 } // tokens >- 3
@@ -371,6 +373,29 @@ class Ants {
 	}
 
 	/**
+	 * Is map[r,c] a hive? If so, return the owner.
+	 *
+	 * @param integer $row
+	 * @param integer $col
+	 * @return integer|false Return owner if found, false otherwise.
+	 */
+	public function isHive($row, $col) {
+		foreach ($this->myHills as $h) {
+			if ($h[0] === $row && $h[1] === $col) {
+				return $h[2];
+			}
+		}
+
+		foreach ($this->enemyHills as $h) {
+			if ($h[0] === $row && $h[1] === $col) {
+				return $h[2];
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Start the stdin loop
 	 *
 	 *	.   = land
@@ -394,7 +419,12 @@ class Ants {
 						$char = '!';
 						break;
 					case LAND:
-						$char = '.';
+						$owner = $this->isHive($i, $j);
+						if ($owner === false) {
+							$char = '.';
+						} else {
+							$char = $owner;
+						}
 						break;
 					case FOOD:
 						$char = '*';
@@ -405,20 +435,23 @@ class Ants {
 					case UNSEEN:
 						$char = '?';
 						break;
-//					case HIVE:
-//						$char = 'H';
-//						break;
 					default:
-						$char = $this->map[$i][$j];
+						$hiveOwner = $this->isHive($i, $j);
+						if ($hiveOwner === false) {
+							$char = $this->map[$i][$j];
+						} else {
+							$char = strtoupper($this->map[$i][$j]);
+						}
 				}
 				$this->logger->write($char, $grp, array('noEndline' => true));
 			}
-			$this->logger->write($char, $grp, array('noEndline' => false));
+			$this->logger->write('', $grp);
 		}
 		$this->logger->write('', $grp, array('noEndline' => false));
-
+		
 		$mh = '';
 		foreach ($this->myHills as $h) {
+			array_splice($h, 2, 1);
 			$mh .= '(' .implode(',', $h) . '), ';
 		}
 
