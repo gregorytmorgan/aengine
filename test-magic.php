@@ -23,13 +23,5 @@ echo $ant2;
 $ant2->pos = array(20, 20);
 echo $ant2 . "\n";
 
-
-$fn = array(
-	function ()  { echo "A\n"; },
-	function ()  { echo "B\n"; },	
-);
-
-foreach ($fn as $f) {
-	$f();
-}
+// end file
 	
