@@ -26,6 +26,8 @@ class AntLogger {
 	const LOG_WARN = 256;
 	const LOG_ERROR = 512;
 
+	const LOG_MAP = 1024;
+
 	const LOG_ALL = 4095;
 
 	const LOG_FILENAME_PREFIX = 'ant';
