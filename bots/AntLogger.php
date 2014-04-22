@@ -71,9 +71,9 @@ class AntLogger {
 				$msg .= "\n";
 			}
 
-			if ($grp === self::LOG_ERROR) {
+			if (($grp & self::LOG_ERROR) === self::LOG_ERROR) {
 				$msg = self::RED . $msg . self::NO_COLOR;
-			} else if ($grp === self::LOG_WARN) {
+			} else if (($grp & self::LOG_WARN) === self::LOG_WARN) {
 				$msg = self::YELLOW . $msg . self::NO_COLOR;
 			} else {
 				$msg = str_replace('<RED>', self::RED, $msg);

@@ -7,14 +7,17 @@ require_once "Math/VectorOp.php";
 
 require_once "AntLogger.php";
 require_once "Ant.php";
+require_once "Map.php";
 
 define('MY_ANT', 0);
 define('ANTS', 0);
-define('DEAD', -1);
-define('LAND', -2);
-define('FOOD', -3);
-define('WATER', -4);
-define('UNSEEN', -5);
+define('DEAD', -1);		// LAND
+define('LAND', -2);		// LAND
+define('FOOD', -3);		// LAND
+define('HIVE', -4);		// LAND
+define('WATER', -5);	
+define('UNSEEN', -6);
+
 
 
 define('DEBUG_LEVEL', AntLogger::LOG_ALL);
@@ -44,7 +47,9 @@ class Ants {
     public $enemyHills = array();
     public $deadAnts = array();
     public $food = array();
-
+	public $gameStartTime = 0;
+	public $terrianMap = null;
+	
     public $AIM = array(
         'n' => array(-1, 0),
         'e' => array(0, 1),
@@ -79,6 +84,11 @@ class Ants {
 	 * @param array $args
 	 */
 	function __construct($args = array()) {
+		
+		// game start time
+		list($usec, $sec) = explode(" ", microtime());
+		$this->gameStartTime = (float)$sec + (float)$usec;
+		
 		$this->logger = new AntLogger(array(
 			'logLevel' =>  DEBUG_LEVEL  // - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
 		));
@@ -91,10 +101,10 @@ class Ants {
     }
 
     public function finishTurn() {
-		$this->logger->write("Finished turn " . $this->turn, AntLogger::LOG_GAME_FLOW);
         echo("go\n");
-		$this->turn++;
         flush();
+		$this->logger->write("Finished turn " . $this->turn, AntLogger::LOG_GAME_FLOW);
+		$this->turn++;
     }
     
     public function setup($data) {
@@ -116,10 +126,14 @@ class Ants {
             }
         }
 
+		$this->terrianMap = new Map(array(
+			'rows' => $this->rows,
+			'cols' => $this->cols,
+			'defaultChar' => UNSEEN
+		));
+		
 		$this->dumpGame(AntLogger::LOG_GAME_FLOW);
     }
-
-    /** not tested */
 
     /**
      * update
@@ -156,6 +170,7 @@ class Ants {
         foreach ($this->food as $ant) {
             list($row, $col) = $ant->pos;
             $this->map[$row][$col] = LAND;
+			$this->terrianMap->grid[$row][$col] = LAND;
         }
 
         $this->food = array();
@@ -179,15 +194,7 @@ class Ants {
                         $this->map[$row][$col] = mb_substr(self::Alpha, $owner, 1);
                         if($owner === 0) {
 							if ($this->turn === 1) {
-								$ant = new Ant(array(
-									'row' => $row,
-									'col' => $col, 
-									'owner' => (int)$owner,
-									'debug' => DEBUG_LEVEL,
-									'mission' => new MissionGoNESW(array(
-										'debug' => DEBUG_LEVEL
-									))
-								));
+								$ant = $this->getNewAnt($row, $col, $owner, $this);
 								$this->addAnt($ant);
 							} else {
 								$ant = $this->lookupAnt($row, $col);
@@ -198,13 +205,31 @@ class Ants {
                         } else {
 							$this->enemyAnts[] = array($row, $col);
                         }
+						$this->terrianMap->grid[$row][$col] = LAND;
+						
+						if (isset($this->viewRadius2) && $this->viewRadius2) {
+							$radius = round(sqrt($this->viewRadius2));
+							$topRow = $row - $radius;
+							$lowRow = $row + $radius;
+							$leftCol = $col - $radius;
+							$rightCol = $col + $radius;
+							for ($r = $topRow; $r <= $lowRow; $r++) {
+								for ($c = $leftCol; $c <= $rightCol; $c++) {
+									$this->terrianMap->grid[$row][$col] = LAND;
+								}
+							}
+						}
+						
                     } elseif ($tokens[0] == 'f') {			// f = food, format: f row col
                         $this->map[$row][$col] = FOOD;
+						$this->terrianMap->grid[$row][$col] = LAND;
                         $this->food []= array($row, $col);
                     } elseif ($tokens[0] == 'w') {			// w = water, format: w row col
                         $this->map[$row][$col] = WATER;
+						$this->terrianMap->grid[$row][$col] = WATER;
                     } elseif ($tokens[0] == 'd') {			// dead ant, format: d row col owner
 
+						$this->terrianMap->grid[$row][$col] = LAND;
 						$this->deadAnts[] = array($row,$col);
 						
                         if ($this->map[$row][$col] === LAND) {
@@ -239,17 +264,36 @@ class Ants {
 		$this->logger->write("Update processing for turn " . $this->turn . " complete", AntLogger::LOG_GAME_FLOW);
     }
 
+	/**
+	 * passable
+	 * 
+	 * @param integer $row Row
+	 * @param integer $col Column
+	 * @return boolean
+	 */
     public function passable($row, $col) {
         return $this->map[$row][$col] > WATER;
     }
 
+	/**
+	 * unoccupied
+	 * 
+	 * @param integer $row Row
+	 * @param integer $col Column
+	 * @return boolean
+	 */
     public function unoccupied($row, $col) {
         return in_array($this->map[$row][$col], array(LAND, DEAD));
     }
 
     /**
-     *
-     */
+	 * destination
+	 * 
+	 * @param integer $row Row
+	 * @param integer $col Column
+	 * @param string $direction n|e|s|w
+	 * @return array
+	 */
     public function destination($row, $col, $direction) {
         list($dRow, $dCol) = $this->AIM[$direction];
         $nRow = ($row + $dRow) % $this->rows;
@@ -285,10 +329,10 @@ class Ants {
     /**
 	 * Calc the direction(n, r, s, w) based on current square and next square.
      * 
-	 * @param intger $row1
-	 * @param intger $col1
-	 * @param intger $row2
-	 * @param intger $col2
+	 * @param intger $row1 Start point row.
+	 * @param intger $col1 Start point col.
+	 * @param intger $row2 End point row.
+	 * @param intger $col2 End point col.
 	 * @return string
 	 */
     public function direction($row1, $col1, $row2, $col2) {
@@ -329,9 +373,57 @@ class Ants {
             }
         }
         return $d;
-
     }
 
+	/**
+	 * Get a new Ant with a mission.
+	 * 
+	 * @param integer $row Row.
+	 * @param integer $col Column.
+	 * @param integer $owner Owner.
+	 * @return Ant
+	 */
+	public function getNewAnt($row, $col, $owner, $game) {
+		
+			$dir = array('North', 'East', 'South', 'West');
+		
+			switch($this->myAnts % 4) {
+				case 0:	// N
+					$goalPt = array(0, floor($game->cols/ 2));
+					break;
+				case 1:	// E
+					$goalPt = array(floor($game->rows / 2), $game->cols - 1);
+					break;
+				case 2:	// S
+					$goalPt = array($game->rows - 1, floor($game->cols / 2));
+					break;
+				case 3: // W
+					$goalPt = array(floor($game->rows / 2), $game->cols - 1);
+					break;
+				default:
+					break;				
+			};
+			
+			$mission = new MissionGoToPoint(array(
+				'debug' => DEBUG_LEVEL,
+				'game' => $game,
+				'startPt' => array($row, $col),
+				'goalPt' => $goalPt
+			));
+		
+			$ant = new Ant(array(
+			'row' => $row,
+			'col' => $col, 
+			'owner' => (int)$owner,
+			'debug' => DEBUG_LEVEL,
+			'mission' => $mission
+		));	
+			
+		$this->logger->write(sprintf("Created new ant:%s", $ant), AntLogger::LOG_GAME_FLOW | AntLogger::LOG_ANT);			
+			
+		return $ant;
+	}
+	
 	/**
 	 * Add an Ant
 	 * 
@@ -479,10 +571,22 @@ class Ants {
 	 *
 	 */
     public function dumpGame($grp = AntLogger::LOG_ALL) {
+		
+		$tstamp = date("Y-m-d H:i:s T", $this->gameStartTime);
+		 
 		$this->logger->write('Game Summary', $grp);
 		$this->logger->write('----------------', $grp);
-		$this->logger->write('Map:' . $this->rows . 'x' . $this->cols, $grp);
-		$this->logger->write('Turns:' . $this->turns, $grp);
+		$this->logger->write('Start Time: ' . $tstamp, $grp);
+		$this->logger->write('Map: ' . $this->rows . 'x' . $this->cols, $grp);
+		$this->logger->write('Turns: ' . $this->turns, $grp);
+		
+		$this->logger->write('Load Time: ' . $this->loadtime, $grp);		
+		$this->logger->write('Turn Time: ' . $this->turntime, $grp);	
+		
+		$this->logger->write('View Radius: ' . (isset($this->viewradius2))   ? $this->viewradius2 : 'Unset', $grp);	
+		$this->logger->write('Attack Radius: ' . (isset($this->attackradius2)) ? $this->attackradius2 : 'Unset', $grp);	
+		$this->logger->write('Food Radius: ' . (isset($this->spawnradius2)) ? $this->spawnradius2 : 'Unset', $grp);			
+		
 		$this->dumpAnts($grp);
 	}
 
@@ -498,6 +602,16 @@ class Ants {
 		$this->logger->write("\n");
 	}
 
+	/**
+	 * getElapsedTime
+	 *
+	 * @return integer
+	 */
+    public function getElapsedTime() {
+		list($usec, $sec) = explode(" ", microtime());
+		return  $this->gameStartTime - (float)$sec + (float)($usec * 1000.0);
+	}
+	
 	/**
 	 * Main game loop
 	 *

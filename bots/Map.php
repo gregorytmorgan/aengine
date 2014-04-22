@@ -25,25 +25,32 @@ class Map {
 	 *
 	 * @param array $args
 	 */
-	function __construct($args = array()){
-
+	function __construct ($args = array()) {
+		$this->id = (isset($args['id'])) ? $args['id'] : get_class($this) . Mission::$instance;
+		$this->name = (isset($args['name'])) ?  $args['name'] : get_class($this) . ' #' . Mission::$instance;		
 		$this->debug = (isset($args['debug'])) ?  $args['debug'] : self::DEBUG_LEVEL_DEFAULT;
-
+		$this->defaultChar = (isset($args['defaultChar'])) ? $args['defaultChar'] : '?';
+		
+		if (isset($args['map'])) {
+			$this->grid = $args['map'];
+			$this->rows = count($this->grid);
+			$this->columns = count($this->grid[0]);
+		} else if (isset($args['rows']) && isset($args['columns'])) {
+			$this->grid = array();
+			$this->rows = (int)$args['rows'];
+			$this->columns = (int)$args['columns'];		
+			for ($i = 0; $i < $this->rows; $i++) {
+				array_push($this->grid, array_fill(0, $this->columns, $this->defaultChar));
+			}
+		} else {
+			$this->grid = array(array($this->defaultChar));
+		}
+		
 		$this->logger = new AntLogger(array(
 			'logLevel' => $this->debug
 		));
 
-		$this->rows = (isset($args['rows'])) ?  $args['rows'] : 1;
-		$this->columns = (isset($args['columns'])) ? $args['columns'] : 1;
-		$this->defaultChar = (isset($args['defaultChar'])) ? $args['defaultChar'] : '?';
-
-		$this->grid = array();
-
-		for ($i = 0; $i < $this->rows; $i++) {
-			array_push($this->grid, array_fill(0, $this->columns, $this->defaultChar));
-		}
-
-		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_MAP);
+		$this->logger->write(sprintf("%s Initialized (%dx%d)", $this->name, $this->rows, $this->columns), AntLogger::LOG_MAP);
 	}
 
 	/**
@@ -71,7 +78,7 @@ class Map {
 	 * @param array $pt Point
 	 * @return string
 	 */
-    public function get($pt) {
+    public function get ($pt) {
 		return $this->grid[$pt[0]][$pt[1]];
 	}
 
@@ -91,12 +98,7 @@ class Map {
 			return false;
 		}
 
-		switch ($this->grid[$r][$c]) {
-			case $this->defaultChar:
-				return true;
-			default:
-				return false;
-		}
+		return $this->grid[$r][$c] > WATER || $this->grid[$r][$c] === UNSEEN;
 	}
 
 	//
@@ -246,6 +248,9 @@ class Map {
 	 * @return array
 	 */
 	public function findPath($start, $goal) {
+		
+		$this->logger->write(sprintf("findPath (%d,%d) to (%d,%d).", $start[0], $start[1], $goal[0],  $goal[1]), AntLogger::LOG_MAP);			
+		
 		$closedset = new LinkedList();
 		$openset = new PQueue();
 
@@ -270,15 +275,34 @@ class Map {
 
 		$openset->insert($s, 0);
 
-		while (!$openset->isEmpty()) { // is not empty
-			$current = $openset->extract();
+$it = 0;	
 
+
+$this->logger->write($this);
+
+		while (!$openset->isEmpty()) { // is not empty
+				
+			
+			if ($it++ > 4) { die(); }
+			
+			$this->logger->write(sprintf("Openset while entry. %d items.", $openset->count()), AntLogger::LOG_MAP);			
+			$this->logger->write(sprintf("Closeset while entry. %d items.", $closedset->count()), AntLogger::LOG_MAP);
+			
+			$this->logger->write($this->dumpList($openset));
+			
+			$current = $openset->extract();
+	
+$this->logger->write($current->pt[0] . ',' . $current->pt[1]);	
+$this->logger->write($g->pt[0] . ',' . $g->pt[1]);				
+			
 			if ($current->pt === $g->pt) {
-				//return true;
+				$this->logger->write(sprintf("Found path (%d,%d) to (%d,%d) ", $s->pt[0], $s->pt[1], $g->pt[0], $g->pt[1]), AntLogger::LOG_MAP | AntLogger::LOG_WARN);
 				return $this->reconstruct_path($current);
 			}
 
 			$neighbor_nodes = $this->getNeighbors($current);
+
+$this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));	
 
 			foreach ($neighbor_nodes as $k => $v) {
 
@@ -309,9 +333,14 @@ class Map {
 			} // each neighbor
 
 			$closedset->push($current);
+			
+			$this->logger->write(sprintf("Openset while end - %d items.", $openset->count()), AntLogger::LOG_MAP);			
+			$this->logger->write(sprintf("Closedset while end %d items.", $closedset->count()), AntLogger::LOG_MAP);			
 
 		} // while
 
+		$this->logger->write(sprintf("Unable to find path (%d,%d) to (%d,%d) ", $s->pt[0], $s->pt[1], $g->pt[0], $g->pt[1]), AntLogger::LOG_MAP | AntLogger::LOG_WARN);
+		
 		return false;
 	} // findPath
 
@@ -331,6 +360,8 @@ class Map {
 			$str .= "(" . implode(",", $node->pt) . ") ";
 		}
 
+		$this->logger->write(sprintf("%s", $str));
+		
 		return $str;
 	}
 
