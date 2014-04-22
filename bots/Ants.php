@@ -27,6 +27,15 @@ define('DEBUG_LEVEL', AntLogger::LOG_ALL);
  */
 class Ants {
 
+	const MY_ANT = 0;
+	const ANTS = 0;
+	const DEAD = -1;		// LAND
+	const LAND = -2;		// LAND
+	const FOOD = -3;		// LAND
+	const HIVE = -4;	// LAND
+	const WATER = -5;
+	const UNSEEN = -6;
+
 	const Alpha = 'abcdefghijslmnopqrstuvwxyz';
 
     public $turns = 0;
@@ -48,7 +57,7 @@ class Ants {
     public $deadAnts = array();
     public $food = array();
 	public $gameStartTime = 0;
-	public $terrianMap = null;
+	public $terrainMap = null;
 	
     public $AIM = array(
         'n' => array(-1, 0),
@@ -120,18 +129,22 @@ class Ants {
                 }
             }
         }
+
         for ($row = 0; $row < $this->rows; $row++) {
             for ($col = 0; $col < $this->cols; $col++) {
                 $this->map[$row][$col] = LAND;
             }
         }
 
-		$this->terrianMap = new Map(array(
+		$this->terrainMap = new Map(array(
 			'rows' => $this->rows,
-			'cols' => $this->cols,
-			'defaultChar' => UNSEEN
+			'columns' => $this->cols,
+			'defaultChar' => ($this->viewradius2) ? Ants::UNSEEN : Ants::LAND
 		));
-		
+
+
+$this->logger->write($this->terrainMap);
+
 		$this->dumpGame(AntLogger::LOG_GAME_FLOW);
     }
 
@@ -170,7 +183,7 @@ class Ants {
         foreach ($this->food as $ant) {
             list($row, $col) = $ant->pos;
             $this->map[$row][$col] = LAND;
-			$this->terrianMap->grid[$row][$col] = LAND;
+			$this->terrainMap->set(array($row, $col), LAND);
         }
 
         $this->food = array();
@@ -192,8 +205,31 @@ class Ants {
                     if ($tokens[0] == 'a') {				// a = live ant, format: w row col owner
                         $owner = (int)$tokens[3];
                         $this->map[$row][$col] = mb_substr(self::Alpha, $owner, 1);
-                        if($owner === 0) {
+						$this->terrainMap->set(array($row, $col), LAND);
+
+						if($owner === 0) {
 							if ($this->turn === 1) {
+
+$this->logger->write(sprintf("viewradius2 %d", $this->viewradius2));
+
+								if ($this->viewradius2) {
+									$radius = round(sqrt($this->viewradius2));
+									$topRow = $row - $radius;
+									$lowRow = $row + $radius;
+									$leftCol = $col - $radius;
+									$rightCol = $col + $radius;
+
+$this->logger->write(sprintf("seen box %d %d %d %d %d", $radius, $topRow, $lowRow, $leftCol, $rightCol));
+
+									for ($r = $topRow; $r <= $lowRow; $r++) {
+										for ($c = $leftCol; $c <= $rightCol; $c++) {
+											if ($this->terrainMap->get(array($r,$c)) !== Ants::WATER) {
+												$this->terrainMap->set(array($r,$c), Ants::LAND);
+											}
+										}
+									}
+								}
+
 								$ant = $this->getNewAnt($row, $col, $owner, $this);
 								$this->addAnt($ant);
 							} else {
@@ -205,37 +241,16 @@ class Ants {
                         } else {
 							$this->enemyAnts[] = array($row, $col);
                         }
-						$this->terrianMap->grid[$row][$col] = LAND;
-						
-						if (isset($this->viewRadius2) && $this->viewRadius2) {
-							$radius = round(sqrt($this->viewRadius2));
-							$topRow = $row - $radius;
-							$lowRow = $row + $radius;
-							$leftCol = $col - $radius;
-							$rightCol = $col + $radius;
-							for ($r = $topRow; $r <= $lowRow; $r++) {
-								for ($c = $leftCol; $c <= $rightCol; $c++) {
-									$this->terrianMap->grid[$row][$col] = LAND;
-								}
-							}
-						}
-						
                     } elseif ($tokens[0] == 'f') {			// f = food, format: f row col
                         $this->map[$row][$col] = FOOD;
-						$this->terrianMap->grid[$row][$col] = LAND;
+						$this->terrainMap->set(array($row, $col), LAND);
                         $this->food []= array($row, $col);
                     } elseif ($tokens[0] == 'w') {			// w = water, format: w row col
                         $this->map[$row][$col] = WATER;
-						$this->terrianMap->grid[$row][$col] = WATER;
+						$this->terrainMap->set(array($row, $col), WATER);
                     } elseif ($tokens[0] == 'd') {			// dead ant, format: d row col owner
-
-						$this->terrianMap->grid[$row][$col] = LAND;
 						$this->deadAnts[] = array($row,$col);
-						
-                        if ($this->map[$row][$col] === LAND) {
-                            $this->map[$row][$col] = DEAD;
-                        }
-
+                        $this->terrainMap->set(array($row, $col), LAND);
 						if (DEBUG_LEVEL) {
 							$ant = $this->lookupAnt($row, $col);
 							if ($ant) {
@@ -244,9 +259,7 @@ class Ants {
 								$this->logger->write(sprintf("KILLED: (%d, %d)", $row, $col), AntLogger::LOG_GAME_FLOW);
 							}
 						}
-
 						$this->deadAnts[] = array($row,$col);
-
                     } elseif ($tokens[0] == 'h') {			// h = hill, format: w row col owner
                         $owner = (int)$tokens[3];
                         if ($owner === 0) {
@@ -254,12 +267,15 @@ class Ants {
                         } else {
                             $this->enemyHills []= array($row, $col, $owner);
                         }
+						$this->terrainMap->set(array($row, $col), LAND);
                     }
                 } // tokens >- 3
             } // not empty line
         } // each line
 
 		$this->dumpMap(AntLogger::LOG_MAPDUMP);
+
+		$this->logger->write($this->terrainMap);
 
 		$this->logger->write("Update processing for turn " . $this->turn . " complete", AntLogger::LOG_GAME_FLOW);
     }
@@ -386,8 +402,10 @@ class Ants {
 	public function getNewAnt($row, $col, $owner, $game) {
 		
 			$dir = array('North', 'East', 'South', 'West');
-		
-			switch($this->myAnts % 4) {
+
+			$nAnts = count($this->myAnts);
+			
+			switch($nAnts % 4) {
 				case 0:	// N
 					$goalPt = array(0, floor($game->cols/ 2));
 					break;
@@ -403,12 +421,16 @@ class Ants {
 				default:
 					break;				
 			};
-			
+
+
+$goalPt =	array(7, 18);
+
 			$mission = new MissionGoToPoint(array(
 				'debug' => DEBUG_LEVEL,
 				'game' => $game,
 				'startPt' => array($row, $col),
-				'goalPt' => $goalPt
+				'goalPt' => $goalPt,
+				'terrainMap' => $this->terrainMap
 			));
 		
 			$ant = new Ant(array(
@@ -583,9 +605,9 @@ class Ants {
 		$this->logger->write('Load Time: ' . $this->loadtime, $grp);		
 		$this->logger->write('Turn Time: ' . $this->turntime, $grp);	
 		
-		$this->logger->write('View Radius: ' . (isset($this->viewradius2))   ? $this->viewradius2 : 'Unset', $grp);	
-		$this->logger->write('Attack Radius: ' . (isset($this->attackradius2)) ? $this->attackradius2 : 'Unset', $grp);	
-		$this->logger->write('Food Radius: ' . (isset($this->spawnradius2)) ? $this->spawnradius2 : 'Unset', $grp);			
+		$this->logger->write('View Radius: ' . $this->viewradius2, $grp);	
+		$this->logger->write('Attack Radius: ' . $this->attackradius2, $grp);	
+		$this->logger->write('Food Radius: ' . $this->spawnradius2, $grp);			
 		
 		$this->dumpAnts($grp);
 	}

@@ -2,6 +2,7 @@
 <?php
 
 require_once 'bots/Map.php';
+require_once 'bots/Ants.php';
 
 $map = new Map(array(
     'rows' => 8,
@@ -38,7 +39,7 @@ $map->grid[6][6] = 'x';
 $map->grid[7][4] = 'x';
 
 
-$path = $map->findPath(array(2,0),array(5,7));
+$path = $map->findPath(array(2,0),array(10,18));
 
 echo $map;
 

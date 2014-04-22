@@ -11,6 +11,8 @@ class Map {
 
 	const DEBUG_LEVEL_DEFAULT = AntLogger::LOG_ALL;
 
+	static $instance = 1;
+	
 	protected $logger;
 
 	protected $debug;
@@ -26,8 +28,8 @@ class Map {
 	 * @param array $args
 	 */
 	function __construct ($args = array()) {
-		$this->id = (isset($args['id'])) ? $args['id'] : get_class($this) . Mission::$instance;
-		$this->name = (isset($args['name'])) ?  $args['name'] : get_class($this) . ' #' . Mission::$instance;		
+		$this->id = (isset($args['id'])) ? $args['id'] : get_class($this) . Map::$instance;
+		$this->name = (isset($args['name'])) ?  $args['name'] : get_class($this) . ' #' . Map::$instance;
 		$this->debug = (isset($args['debug'])) ?  $args['debug'] : self::DEBUG_LEVEL_DEFAULT;
 		$this->defaultChar = (isset($args['defaultChar'])) ? $args['defaultChar'] : '?';
 		
@@ -47,8 +49,11 @@ class Map {
 		}
 		
 		$this->logger = new AntLogger(array(
-			'logLevel' => $this->debug
+			'logLevel' => $this->debug,
+//			'output' => STDERR
 		));
+
+		Map::$instance++;
 
 		$this->logger->write(sprintf("%s Initialized (%dx%d)", $this->name, $this->rows, $this->columns), AntLogger::LOG_MAP);
 	}
@@ -60,7 +65,6 @@ class Map {
     public function __toString () {
 		$str = '';
 		for ($i = 0, $ilen = count($this->grid); $i < $ilen; $i++) {
-
 			for ($j = 0, $jlen = count($this->grid[$i]); $j < $jlen; $j++) {
 				switch ($this->grid[$i][$j]) {
 					default:
@@ -79,7 +83,30 @@ class Map {
 	 * @return string
 	 */
     public function get ($pt) {
-		return $this->grid[$pt[0]][$pt[1]];
+		$wrappedPt = $this->gridWrap($pt);
+		return $this->grid[$wrappedPt[0]][$wrappedPt[1]];
+	}
+
+    public function set ($pt, $value) {
+		$wrappedPt = $this->gridWrap($pt);
+		$this->grid[$wrappedPt[0]][$wrappedPt[1]] = $value;
+	}
+
+	/**
+	 * gridWrap
+	 *
+	 * @param array $pt
+	 * @return array
+	 */
+	public function gridWrap($pt) {
+		$row = $pt[0];
+		$col = $pt[1];
+		$r = $row % $this->rows;
+		$c = $col % $this->columns;
+		return array(
+			($r < 0) ? $r + $this->rows : $r,
+			($c < 0) ? $c + $this->columns : $c,
+		);
 	}
 
 	/**
@@ -98,7 +125,7 @@ class Map {
 			return false;
 		}
 
-		return $this->grid[$r][$c] > WATER || $this->grid[$r][$c] === UNSEEN;
+		return $this->grid[$r][$c] > Ants::WATER; // || $this->grid[$r][$c] === Ants::UNSEEN;
 	}
 
 	//
@@ -190,6 +217,7 @@ class Map {
 	function getNeighbors($node) {
 		$pt = $node->pt;
 		$npt = array($pt[0] - 1, $pt[1]);
+		$retval = array();
 		if ($this->passible($npt)) {
 			$retval[] = (object)array('pt' => $npt, 'f' => null, 'g' => null, 'h' => null, 'parent' => $node);
 		}
@@ -230,7 +258,7 @@ class Map {
 			$next = $next->parent;
 		}
 
-		return $retval;
+		return array_reverse($retval);
 	}
 
 	/**
@@ -249,7 +277,7 @@ class Map {
 	 */
 	public function findPath($start, $goal) {
 		
-		$this->logger->write(sprintf("findPath (%d,%d) to (%d,%d).", $start[0], $start[1], $goal[0],  $goal[1]), AntLogger::LOG_MAP);			
+		$this->logger->write(sprintf("findPath (%d,%d) to (%d,%d)", $start[0], $start[1], $goal[0],  $goal[1]), AntLogger::LOG_MAP);			
 		
 		$closedset = new LinkedList();
 		$openset = new PQueue();
@@ -277,23 +305,20 @@ class Map {
 
 $it = 0;	
 
-
 $this->logger->write($this);
 
 		while (!$openset->isEmpty()) { // is not empty
 				
+if ($s->pt[0] === 3) {
+ if ($it++ > 555) { die(); }
+}
 			
-			if ($it++ > 4) { die(); }
-			
-			$this->logger->write(sprintf("Openset while entry. %d items.", $openset->count()), AntLogger::LOG_MAP);			
-			$this->logger->write(sprintf("Closeset while entry. %d items.", $closedset->count()), AntLogger::LOG_MAP);
-			
-			$this->logger->write($this->dumpList($openset));
+			$this->logger->write(sprintf("Openset while entry %d. %s", $it, $this->dumpList($openset)), AntLogger::LOG_MAP);
+			$this->logger->write(sprintf("Closeset while entry %d. %s", $it, $this->dumpList($closedset)), AntLogger::LOG_MAP);
 			
 			$current = $openset->extract();
 	
-$this->logger->write($current->pt[0] . ',' . $current->pt[1]);	
-$this->logger->write($g->pt[0] . ',' . $g->pt[1]);				
+$this->logger->write('Current: ' . $current->pt[0] . ',' . $current->pt[1]);
 			
 			if ($current->pt === $g->pt) {
 				$this->logger->write(sprintf("Found path (%d,%d) to (%d,%d) ", $s->pt[0], $s->pt[1], $g->pt[0], $g->pt[1]), AntLogger::LOG_MAP | AntLogger::LOG_WARN);
@@ -306,14 +331,22 @@ $this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));
 
 			foreach ($neighbor_nodes as $k => $v) {
 
-				//$neighbor = $neighbor_nodes[$k];
-				$neighbor = unserialize(serialize($v));
+				$neighbor = $neighbor_nodes[$k];
+				//$neighbor = unserialize(serialize($v));
 
 				$newg =  $current->g + 1; //$this->cost($current->pt, $neighbor->pt), in this map one square always cost the same.
 
 				$neighbor->g = $this->travelDistance($s->pt, $neighbor->pt);
 
-				if (($closedset->find($neighbor) || $openset->find($neighbor)) && $neighbor->g <= $newg) {
+$this->logger->write(sprintf("start to neighbor (%d,%d) g dist: %d", $neighbor->pt[0], $neighbor->pt[1], $neighbor->g));
+$this->logger->write(sprintf("neighbor to goal dist: %d", $this->travelDistance($neighbor->pt, $g->pt)));
+$this->logger->write('open find: ' . $openset->find($neighbor));
+$this->logger->write('close find: ' . $closedset->find($neighbor));
+
+				if (($closedset->find($neighbor) !== false || $openset->find($neighbor) !== false) && $neighbor->g <= $newg) {
+
+$this->logger->write(sprintf("continue"));
+
 					continue;
 				}
 
@@ -334,9 +367,9 @@ $this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));
 
 			$closedset->push($current);
 			
-			$this->logger->write(sprintf("Openset while end - %d items.", $openset->count()), AntLogger::LOG_MAP);			
-			$this->logger->write(sprintf("Closedset while end %d items.", $closedset->count()), AntLogger::LOG_MAP);			
-
+//			$this->logger->write(sprintf("Openset while end. %s", $this->dumpList($openset)), AntLogger::LOG_MAP);
+//			$this->logger->write(sprintf("Closeset while end. %s", $this->dumpList($closedset)), AntLogger::LOG_MAP);
+			
 		} // while
 
 		$this->logger->write(sprintf("Unable to find path (%d,%d) to (%d,%d) ", $s->pt[0], $s->pt[1], $g->pt[0], $g->pt[1]), AntLogger::LOG_MAP | AntLogger::LOG_WARN);
@@ -352,16 +385,9 @@ $this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));
 	 */
 	function dumpList($nodeList) {
 		$str = '';
-		//$nl = clone $nodeList; // only a shallow clone
-		$nl = unserialize(serialize($nodeList));
-
-		for ($nl->rewind(); $nl->valid(); $nl->next()) {
-			$node = $nl->current();
+		foreach (clone $nodeList as $node) {
 			$str .= "(" . implode(",", $node->pt) . ") ";
 		}
-
-		$this->logger->write(sprintf("%s", $str));
-		
 		return $str;
 	}
 
@@ -394,9 +420,10 @@ $this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));
 	 * @param array $pt2
 	 * @return integer
 	 */
-    public function travelDistance($pt1, $pt2, $checkWrap = false) {
-		list($row1, $col1) = $pt1;
-		list($row2, $col2) = $pt2;
+    public function travelDistance($pt1, $pt2) {
+
+		list($row1, $col1) = $this->gridWrap($pt1);
+		list($row2, $col2) = $this->gridWrap($pt2);
 
         $dRow = abs($row1 - $row2);
         $dCol = abs($col1 - $col2);
@@ -444,12 +471,12 @@ class PQueue extends SplPriorityQueue {
 	function find($target) {
 		$targetPt = $target->pt;
 
-		//$nodeList = clone $this;
-		$nodeList = unserialize(serialize($this));
+		$nodeList = clone $this;
+		//$nodeList = unserialize(serialize($this));
 
 		for ($nodeList->rewind(); $nodeList->valid(); $nodeList->next()) {
-			$itemPt = $nodeList->current()->pt;
-			if ($targetPt[0] === $itemPt[0] && $targetPt[1] === $itemPt[1]) {
+			$nodePt = $nodeList->current()->pt;
+			if ($targetPt[0] === $nodePt[0] && $targetPt[1] === $nodePt[1]) {
 				return $nodeList->key();
 			}
 		}
@@ -477,14 +504,21 @@ class LinkedList extends SplDoublyLinkedList {
 	 */
 	function find ($target) {
 
-		//$nodeList = clone $this;
-		$nodeList = unserialize(serialize($this));
+		$nodeList = clone $this;
+		//$nodeList = unserialize(serialize($this));
 
 		$targetPt = $target->pt;
+//		for ($nodeList->rewind(); $nodeList->valid(); $nodeList->next()) {
+//			$nodePt = $nodeList->current()->pt;
+//
+//			if ($targetPt[0] === $nodePt[0] && $targetPt[1] === $nodePt[1]) {
+//				return $nodeList->key();
+//			}
+//		}
+
 		for ($nodeList->rewind(); $nodeList->valid(); $nodeList->next()) {
-			$itemPt = $nodeList->current()->pt;
-			
-			if ($targetPt[0] === $itemPt[0] && $targetPt[1] === $itemPt[1]) {
+			$nodePt = $nodeList->current()->pt;
+			if ($targetPt[0] === $nodePt[0] && $targetPt[1] === $nodePt[1]) {
 				return $nodeList->key();
 			}
 		}

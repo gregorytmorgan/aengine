@@ -17,7 +17,7 @@ class Mission {
 
 	public $name;
 
-	protected $logger;	
+	public $logger;
 	
 	protected $debug;	
 
@@ -139,12 +139,26 @@ class Mission {
 		}
 
 		foreach ($this->state->events as $evt) {
-			if (is_callable($evt['test'])) {
-				if ($evt['test']($ant, $game)) {
+			if (is_callable($evt['test']) || (isset($evt['test'][0]) && is_callable($evt['test'][0]))) {
+				$nextState = false;
+				if (is_callable($evt['test'])) {
+					if ($evt['test']($ant, $game)) {
+						$nextState = true;
+					}
+				} else {
+					$args = array($ant, $game);
+					if (isset($evt['test'][1]) && is_array($evt['test'][1])) {
+						array_push($args, $evt['test'][1]);
+					}
+					if (call_user_func_array($evt['test'][0], $args)) {
+						$nextState = true;
+					}
+				}
+				if ($nextState) {
 					$prevState = $this->state->name;
 					$this->setState($evt['next']);
 					$this->logger->write(sprintf("%s transitioning from state %s to state %s", $this->name, $prevState, $this->state->name), AntLogger::LOG_MISSION);
-				} 
+				}
 			} else {
 				$this->logger->write('Event test for state ' . sprintf("%s", $this->state) . ' is not callable', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
 			}
@@ -275,9 +289,9 @@ class MissionGoNESW extends Mission {
  */
 class MissionGoToPoint extends Mission {
 	
-	protected $pathMap = null;
+	protected $terrainMap = null;
 	
-	protected $goalPt = null;
+	public $goalPt = null;
 	
 	protected $path = null;
 	
@@ -297,13 +311,12 @@ class MissionGoToPoint extends Mission {
 		}
 		
 		global $END_STATE;
-		
-		$this->pathMap = new Map(array(
-			'debug' => $this->debug,
-			'rows' => $this->game->rows,
-			'columns' => $this->game->cols,
-			'defaultChar' => UNSEEN		// define('UNSEEN', -5); from Ants.php
-		));
+
+		$this->terrainMap = (isset($args['terrainMap'])) ? $args['terrainMap'] : false;
+
+		if (!$this->terrainMap) {
+			$this->logger->write('No terrain map.', AntLogger::LOG_ANT | AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+		}
 		
 		$init_state = new State(array(
 			'id' => 'init',
@@ -326,7 +339,12 @@ class MissionGoToPoint extends Mission {
 			'actionName' => 'Move next',
 			'events' => array (
 				array(
-					'test' => function ($ant, $data = array()) { return false; },
+					'test' => array(
+						function ($ant, $data = array(), $arg) {
+							$arg[0]->logger->write(sprintf('%d,%d %d,%d', $ant->row, $ant->col, $arg[0]->goalPt[0], $arg[0]->goalPt[1]));
+							return $arg[0]->goalPt === $ant->pos; },
+						array($this)
+					),
 					'next' => 'end'
 				)
 			),
@@ -358,16 +376,17 @@ class MissionGoToPoint extends Mission {
 		
 $this->logger->write(sprintf("Mission init 1 %d,%d  %d,%d-------------------------------------------",$ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]));	
 
-		$path = $this->pathMap->findPath(array($ant->row, $ant->col), $this->goalPt);
+		$path = $game->terrainMap->findPath(array($ant->row, $ant->col), $this->goalPt);
 
-$this->logger->write('Mission init 2 -------------------------------------------');			
-		
 		if (!$path) {
-			$this->logger->write(sprintf("%s Init - pathFind failed, Using current point.", $this), AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+			$this->logger->write(sprintf("State init - pathFind failed for (%d,%d) to (%d,%d)  Using current point.", $ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
 			//$path = array(array($ant->row, $ant->col));
 			$this->path = false;
 		}
-		
+
+$this->logger->write('path: ' . var_export($path, true));
+
+
 		$this->path = $path;
 	}
 	
@@ -394,13 +413,16 @@ $this->logger->write('Mission init 2 -------------------------------------------
 
 		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
 
+$this->logger->write('dir:' . var_export($direction, true));
+
+
 		// is the dest coord ok?
 		$passable = $game->passable($nextPt[0], $nextPt[1]);									// myMap->passable()
 		if ($passable) {
-			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction, $dRow, $dCol), AntLogger::LOG_MISSION);
-			$game->issueOrder($ant->row, $ant->col, $direction);
+			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+			$game->issueOrder($ant->row, $ant->col, $direction[0]);
 			//$game->map[$row][$col] = LAND;											// myMap->update()
-			$ant->pos = array($dRow, $dCol);										// myMap->update()
+			$ant->pos = array($nextPt[0], $nextPt[1]);										// myMap->update()
 			return $direction;
 		} else {
 			// for some reason the path is blocked - another ant?, put the point 
