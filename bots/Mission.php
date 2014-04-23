@@ -63,6 +63,7 @@ class Mission {
 
 		global $INIT_STATE;		
 		global $END_STATE;
+		global $STUCK_STATE;
 		
 		$this->id = (isset($args['id'])) ? $args['id'] : get_class($this) . Mission::$instance;
 		$this->name = (isset($args['name'])) ?  $args['name'] : get_class($this) . ' #' . Mission::$instance;
@@ -138,9 +139,10 @@ class Mission {
 	function doTurn(Ant $ant, $game = array()) {
 		$result = null;
 
+		// do the action for the turn
 		if ($this->state->action) {
 			if (is_callable($this->state->action) || (isset($this->state->action[0]) && is_callable($this->state->action[0]))) {
-				$this->logger->write($ant->name . ' - Firing ant action ' . $this->state->actionName, AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MISSION);
+				$this->logger->write($ant->name . ' - Firing ant action "' . $this->state->actionName . '"', AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MISSION);
 				if (is_callable($this->state->action)) {
 					$result = call_user_func_array($this->state->action, array($ant, $game));
 				} else {
@@ -151,10 +153,11 @@ class Mission {
 					$result = call_user_func_array($this->state->action[0], $args);
 				}
 			} else {
-				$this->logger->write('Action is not callable', AntLogger::LOG_ERROR);
+				$this->logger->write($ant->name . ' action is not callable(' . $this->state->actionName . ')', AntLogger::LOG_ERROR);
 			}
 		}
 
+		// check for events that might trigger a state change
 		foreach ($this->state->events as $evt) {
 			if (is_callable($evt['test']) || (isset($evt['test'][0]) && is_callable($evt['test'][0]))) {
 				$nextState = false;
@@ -196,6 +199,8 @@ class Mission {
 		// is the dest coord ok?
 		//$passable = $game->passable($nextPt[0], $nextPt[1]);
 
+$this->logger->write(sprintf("Path: %s", $this->printPath($this->path)));		
+		
 		$nextPt = $this->getNextMove($ant, $game);
 
 		// direction will be an empty array if pt0 == pt1
@@ -207,9 +212,6 @@ class Mission {
 			if ($ant->firstTurn % $game->viewradius === 0) {
 				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
 			}
-
-	$this->logger->write(var_export($direction, true));
-	$this->logger->write(var_export($direction[0], true));
 
 			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
 			$game->issueOrder($ant->row, $ant->col, $direction[0]);
@@ -263,6 +265,24 @@ class Mission {
 		throw new Exception ('Override this function to return n|e|s|w');
 	}
 
+	/**
+	 * printPath
+	 * 
+	 * A path is just an array of points (arrays).
+	 * 
+	 * @param array $path
+	 * @return string
+	 */
+	public function printPath($path) {
+		$str = '';
+		if ($path) {
+			foreach ($path as $p) {
+				$str .= '(' . implode(',', $p) . ')';
+			}
+		}
+		return $str;
+	}
+	
 	/**
 	 * 
 	 * @return string

@@ -90,9 +90,16 @@ class Map {
     public function get ($arg1, $arg2 = null) {
 		if (is_array($arg1)) {
 			$wPt = $this->gridWrap($arg1);
+			if ($wPt[0] < 0 || $wPt[0] >= $this->rows || $wPt[1] < 0 || $wPt[1] >= $this->columns) {
+				$this->logger->write(sprintf("Map.get(%d,%d) -> (%d,%d)", $arg1[0], $arg1[1], $wPt[0], $wPt[1]), AntLogger::LOG_ERROR);
+			}			
 		} else {
 			$wPt = $this->gridWrap(array($arg1, $arg2));
+			if ($wPt[0] < 0 || $wPt[0] >= $this->rows || $wPt[1] < 0 || $wPt[1] >= $this->columns) {
+				$this->logger->write(sprintf("Map.get(%d,%d) -> (%d,%d)", $arg1[0], $arg1[1], $wPt[0], $wPt[1]), AntLogger::LOG_ERROR);
+			}
 		}
+
 		return $this->grid[$wPt[0]][$wPt[1]];
 	}
 
@@ -133,18 +140,18 @@ class Map {
 	}
 
 	/**
-	 * passible
+	 * passable
 	 *
 	 * @param array $pt
 	 * @return boolean
 	 */
-    public function passible($pt) {
+    public function passable($pt) {
 		$r = $pt[0];
 		$c = $pt[1];
 
 		$retval = $this->get($r, $c) > Ants::WATER;
 
-	$this->logger->write(sprintf("Map.passible(%d,%d) = %d", $r, $c, $retval));
+//$this->logger->write(sprintf("Map.passable(%d,%d) = %d", $r, $c, $retval), AntLogger::LOG_MAP);
 
 		return $retval; // || $this->grid[$r][$c] === Ants::UNSEEN;
 	}
@@ -167,7 +174,7 @@ class Map {
 			$leftCol = $col - $radius;
 			$rightCol = $col + $radius;
 
-//$this->logger->write(sprintf("seen box %d %d %d %d %d", $radius, $topRow, $lowRow, $leftCol, $rightCol));
+//$this->logger->write(sprintf("seen box %d %d %d %d %d", $radius, $topRow, $lowRow, $leftCol, $rightCol), AntLogger::LOG_MA);
 
 			for ($r = $topRow; $r <= $lowRow; $r++) {
 				$dr = abs($row - $r);
@@ -179,7 +186,7 @@ class Map {
 							$this->set(array($r, $c), Ants::LAND);
 						}
 					} else {
-//$this->logger->write(sprintf("seen 2  %d,%d %d", $r, $c, $this->viewradius2));
+//$this->logger->write(sprintf("seen 2  %d,%d %d", $r, $c, $this->viewradius2), AntLogger::LOG_MA);
 					}
 				}
 			}
@@ -275,22 +282,22 @@ class Map {
 		$pt = $node->pt;
 		$npt = array($pt[0] - 1, $pt[1]);
 		$retval = array();
-		if ($this->passible($npt)) {
+		if ($this->passable($npt)) {
 			$retval[] = (object)array('pt' => $npt, 'f' => null, 'g' => null, 'h' => null, 'parent' => $node);
 		}
 
 		$ept = array($pt[0], $pt[1] + 1);
-		if ($this->passible($ept)) {
+		if ($this->passable($ept)) {
 			$retval[] = (object)array('pt' => $ept, 'f' => null, 'g' => null, 'h' => null, 'parent' => $node);
 		}
 
 		$spt = array($pt[0] + 1, $pt[1]);
-		if ($this->passible($spt)) {
+		if ($this->passable($spt)) {
 			$retval[] = (object)array('pt' => $spt, 'f' => null, 'g' => null, 'h' => null, 'parent' => $node);
 		}
 
 		$wpt = array($pt[0], $pt[1] - 1);
-		if ($this->passible($wpt)) {
+		if ($this->passable($wpt)) {
 			$retval[] = (object)array('pt' => $wpt, 'f' => null, 'g' => null, 'h' => null, 'parent' => $node);
 		}
 
@@ -477,9 +484,12 @@ $it = 0;
 	 */
     public function travelDistance($pt1, $pt2) {
 
-		list($row1, $col1) = $this->gridWrap($pt1);
-		list($row2, $col2) = $this->gridWrap($pt2);
+//		list($row1, $col1) = $this->gridWrap($pt1);
+//		list($row2, $col2) = $this->gridWrap($pt2);
 
+		list($row1, $col1) = $pt1;
+		list($row2, $col2) = $pt2;
+		
         $dRow = abs($row1 - $row2);
         $dCol = abs($col1 - $col2);
 

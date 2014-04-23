@@ -15,7 +15,7 @@ class MissionPatrol extends Mission{
 
 	public $centerPt = null;
 
-	protected $path = null;
+	public $path = null;
 
 	/**
 	 * Call the parent constructor, then redefine the mission states
@@ -57,12 +57,25 @@ class MissionPatrol extends Mission{
 			'events' => array (
 				array(
 					'test' => array(
-						function ($ant, $data = array(), $arg) { return false; },
+						function ($ant, $data = array(), $arg) { 
+							return !$arg[0]->path;
+						},
 						array($this)
 					),
 					'next' => 'patrol'
 				)
 			),
+							
+//				array(
+//					'test' => array(
+//						function ($ant, $data = array(), $arg) {
+//$arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant->row, $ant->col, $arg[0]->goalPt[0], $arg[0]->goalPt[1]));
+//							return $arg[0]->goalPt === $ant->pos; },
+//						array($this)
+//					),
+//					'next' => 'end'
+//				)							
+							
 			'debug' => $this->debug
 		));
 
@@ -87,6 +100,7 @@ class MissionPatrol extends Mission{
 		$this->states = array(
 			'init' => $init_state,
 			'moving' => $move_state,
+			'patrol' => $patrol_state,
 			'end' => $END_STATE
 		);
 
@@ -107,19 +121,17 @@ class MissionPatrol extends Mission{
 	 */
 	function init (Ant $ant, Ants $game) {
 		$angle = rand() * 6.28;
-		//$patrolStart = array(cos($angle) * $this->radius, sin($angle) * $this->radius);
-		$patrolStart = array(2,8);
+		$patrolStart = array(cos($angle) * $ant->row, sin($angle) * $ant->col);
+		
+		$this->logger->write(sprintf($ant->name . " - PatrolStart: %d,%d", $ant->row, $ant->col), AntLogger::LOG_MISSION);			
+		
+		//$patrolStart = array(2,8);
 
 		$path = $game->terrainMap->findPath(array($ant->row, $ant->col), $patrolStart);
 
-$str = '';
-if ($path) {
-foreach ($path as $p) {
-  $str .= '(' . implode(',', $p) . ')';
-}
-}
-
-$this->logger->write('path:' . $str);
+				
+		$this->logger->write(sprintf("Path: %s", $this->printPath($path)), AntLogger::LOG_MISSION);		
+		
 
 		if (!$path) {
 			$this->logger->write(sprintf("State init - pathFind failed for (%d,%d) to (%d,%d)", $ant->row, $ant->col, $patrolStart[0], $patrolStart[1]), AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
@@ -142,7 +154,7 @@ $this->logger->write('path:' . $str);
 
 		// is the dest coord ok?
 		//$passable = $game->passable($nextPt[0], $nextPt[1]);
-		$passable = $game->terrainMap->passible(array($nextPt[0], $nextPt[1]));
+		$passable = $game->terrainMap->passable(array($nextPt[0], $nextPt[1]));
 
 		// myMap->passable()
 		if ($passable) {
@@ -235,11 +247,7 @@ $this->logger->write('path:' . $str);
 			return false;
 		}
 
-		array_unshift($this->path, $nextPt);
-
-		$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
-
-		$passable = $game->passable($nextPt[0], $nextPt[1]);
+		$passable = $game->terrainMap->passable($nextPt[0], $nextPt[1]);
 
 		if ($passable) {
 			return array($nextPt[0], $nextPt[1]);
@@ -248,11 +256,9 @@ $this->logger->write('path:' . $str);
 		// for some reason the path is blocked - another ant?, put the point
 		// back on the path and wait a turn.  After that?  Recalc?  Solution
 		// needs to avoid deadlock.
-		$this->stuck++;
-
 		array_unshift($this->path, $nextPt);
-
-		$this->logger->write(sprintf("%s Path (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+		$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+		$this->stuck++;
 
 		if ($this->stuck > $this->stuckThreshold) {
 			$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $this->stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
@@ -265,5 +271,19 @@ $this->logger->write('path:' . $str);
 		return false;
 	}
 
-
+	/**
+	 * Do patrol action
+	 * 
+	 * Attack?
+	 * Gather food?
+	 * 
+	 * @param Ant $ant
+	 * @param Ants $game
+	 * @return boolean
+	 */
+	public function patrol(Ant $ant, Ants $game) {
+		$this->logger->write($ant->name . ' - Doing the patrol action.', AntLogger::LOG_MISSION);
+		return true;
+	}
+	
 } //  MissionGoToPoint

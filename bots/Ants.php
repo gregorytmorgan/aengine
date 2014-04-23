@@ -255,9 +255,9 @@ class Ants {
 						if (DEBUG_LEVEL) {
 							$ant = $this->lookupAnt($row, $col);
 							if ($ant) {
-								$this->logger->write(sprintf("CASUALTY: %s", $ant), AntLogger::LOG_GAME_FLOW);
+								$this->logger->write(sprintf("<RED>CASUALTY: %s</RED>", $ant), AntLogger::LOG_GAME_FLOW);
 							} else {
-								$this->logger->write(sprintf("KILLED: (%d, %d)", $row, $col), AntLogger::LOG_GAME_FLOW);
+								$this->logger->write(sprintf("<GREEN>KILLED: (%d, %d)</GREEN>", $row, $col), AntLogger::LOG_GAME_FLOW);
 							}
 						}
 						$this->deadAnts[] = array($row,$col);
@@ -274,10 +274,10 @@ class Ants {
             } // not empty line
         } // each line
 
-		$this->dumpMap(AntLogger::LOG_MAPDUMP);
+		$this->dumpMap(AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MAPDUMP);
 
-		$this->logger->write("Terrian Map:"); 
-		$this->logger->write($this->terrainMap);
+		$this->logger->write("Terrian Map:", AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MAPDUMP); 
+		$this->logger->write($this->terrainMap, AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MAPDUMP);
 
 		$this->logger->write("Update processing for turn " . $this->turn . " complete", AntLogger::LOG_GAME_FLOW);
     }
@@ -293,7 +293,7 @@ class Ants {
 		
 		$retval = $this->mapGet($row, $col);
 		
-$this->logger->write(sprintf("Ants.passible(%d,%d) = %d", $row, $col, $retval));
+$this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
 		
         return $retval > Ants::WATER;
     }
@@ -360,7 +360,7 @@ $this->logger->write(sprintf("Ants.passible(%d,%d) = %d", $row, $col, $retval));
 	 */
     public function direction($row1, $col1, $row2, $col2) {
 
-$this->logger->write(sprintf("direction - entry %d,%d %d,%d", $row1, $col1, $row2, $col2), AntLogger::LOG_MISSION);
+//$this->logger->write(sprintf("direction - entry %d,%d %d,%d", $row1, $col1, $row2, $col2), AntLogger::LOG_MISSION);
 
         $d = array();
         $row1 = $row1 % $this->rows;
@@ -594,7 +594,7 @@ $this->logger->write(sprintf("direction - entry %d,%d %d,%d", $row1, $col1, $row
 			$eh .= '(' .implode(',', $h) . '), ';
 		}
 		
-		$this->logger->write('MyHives: ' . substr($mh, 0, -2) . '. Enemy Hives: ' . substr($eh, 0, -2) . ".\n");
+		$this->logger->write('MyHives: ' . substr($mh, 0, -2) . '. Enemy Hives: ' . substr($eh, 0, -2) . ".\n", $grp);
 	}
 
 	/**
