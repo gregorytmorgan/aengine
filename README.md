@@ -13,3 +13,6 @@ Packages
 ---------------------------------------------------
 sudo pear install --alldeps pear.php.net/Math_Vector-0.7.0
 
+Use game options -i and -o to generate a log with command input/output.
+
+
