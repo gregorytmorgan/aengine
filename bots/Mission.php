@@ -341,7 +341,7 @@ class MissionGoToPoint extends Mission {
 				array(
 					'test' => array(
 						function ($ant, $data = array(), $arg) {
-							$arg[0]->logger->write(sprintf('%d,%d %d,%d', $ant->row, $ant->col, $arg[0]->goalPt[0], $arg[0]->goalPt[1]));
+$arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant->row, $ant->col, $arg[0]->goalPt[0], $arg[0]->goalPt[1]));
 							return $arg[0]->goalPt === $ant->pos; },
 						array($this)
 					),
@@ -413,13 +413,10 @@ $this->logger->write('path: ' . var_export($path, true));
 
 		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
 
-$this->logger->write('dir:' . var_export($direction, true));
-
-
 		// is the dest coord ok?
 		$passable = $game->passable($nextPt[0], $nextPt[1]);									// myMap->passable()
 		if ($passable) {
-			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
 			$game->issueOrder($ant->row, $ant->col, $direction[0]);
 			//$game->map[$row][$col] = LAND;											// myMap->update()
 			$ant->pos = array($nextPt[0], $nextPt[1]);										// myMap->update()

@@ -66,10 +66,7 @@ class Map {
 		$str = '';
 		for ($i = 0, $ilen = count($this->grid); $i < $ilen; $i++) {
 			for ($j = 0, $jlen = count($this->grid[$i]); $j < $jlen; $j++) {
-				switch ($this->grid[$i][$j]) {
-					default:
-						$str .= $this->grid[$i][$j];
-				}
+				$str .= $this->grid[$i][$j];
 			}
 			$str .= "\n";
 		}
@@ -87,9 +84,24 @@ class Map {
 		return $this->grid[$wrappedPt[0]][$wrappedPt[1]];
 	}
 
-    public function set ($pt, $value) {
-		$wrappedPt = $this->gridWrap($pt);
-		$this->grid[$wrappedPt[0]][$wrappedPt[1]] = $value;
+	/**
+	 * 
+	 * @param type $pt
+	 * @param type $value
+	 */
+    public function set ($arg1, $arg2, $arg3) {
+		
+		if (is_array($arg1)) {
+			$wPt = $this->gridWrap($arg1);
+			$value = $arg2;
+			$this->logger->write(sprintf("Map.set(%d,%d) -> (%d,%d) = %d", $arg1[0], $arg1[1], $wPt[0], $wPt[1], $value));
+		} else {
+			$wPt = $this->gridWrap(array($arg1, $arg2));
+			$value = $arg3;
+			$this->logger->write(sprintf("Map.set(%d,%d) -> (%d,%d) = %d", $arg1, $arg2, $wPt[0], $wPt[1], $value));
+		}		
+		
+		$this->grid[$wPt[0]][$wPt[1]] = $value;
 	}
 
 	/**
@@ -104,8 +116,8 @@ class Map {
 		$r = $row % $this->rows;
 		$c = $col % $this->columns;
 		return array(
-			($r < 0) ? $r + $this->rows : $r,
-			($c < 0) ? $c + $this->columns : $c,
+			($row < 0) ? $r + $this->rows : $r,
+			($col < 0) ? $c + $this->columns : $c,
 		);
 	}
 
@@ -121,11 +133,11 @@ class Map {
 		$r = $pt[0];
 		$c = $pt[1];
 
-		if ($r < 0 || $r >= $this->rows || $c < 0 || $c >= $this->columns) {
-			return false;
-		}
+//		if ($r < 0 || $r >= $this->rows || $c < 0 || $c >= $this->columns) {
+//			return false;
+//		}
 
-		return $this->grid[$r][$c] > Ants::WATER; // || $this->grid[$r][$c] === Ants::UNSEEN;
+		return $this->get($r, $c) > Ants::WATER; // || $this->grid[$r][$c] === Ants::UNSEEN;
 	}
 
 	//
@@ -305,20 +317,20 @@ class Map {
 
 $it = 0;	
 
-$this->logger->write($this);
-
 		while (!$openset->isEmpty()) { // is not empty
 				
-if ($s->pt[0] === 3) {
- if ($it++ > 555) { die(); }
-}
+//if ($s->pt[0] === 3) {
+// if ($it++ > 555) { die(); }
+//}
+
 			
-			$this->logger->write(sprintf("Openset while entry %d. %s", $it, $this->dumpList($openset)), AntLogger::LOG_MAP);
-			$this->logger->write(sprintf("Closeset while entry %d. %s", $it, $this->dumpList($closedset)), AntLogger::LOG_MAP);
+//$this->logger->write(sprintf("Openset while entry %d. %s", $it, $this->dumpList($openset)), AntLogger::LOG_MAP);
+//$this->logger->write(sprintf("Closeset while entry %d. %s", $it, $this->dumpList($closedset)), AntLogger::LOG_MAP);
+
 			
 			$current = $openset->extract();
 	
-$this->logger->write('Current: ' . $current->pt[0] . ',' . $current->pt[1]);
+//$this->logger->write('Current: ' . $current->pt[0] . ',' . $current->pt[1]);
 			
 			if ($current->pt === $g->pt) {
 				$this->logger->write(sprintf("Found path (%d,%d) to (%d,%d) ", $s->pt[0], $s->pt[1], $g->pt[0], $g->pt[1]), AntLogger::LOG_MAP | AntLogger::LOG_WARN);
@@ -327,7 +339,7 @@ $this->logger->write('Current: ' . $current->pt[0] . ',' . $current->pt[1]);
 
 			$neighbor_nodes = $this->getNeighbors($current);
 
-$this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));	
+//$this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));	
 
 			foreach ($neighbor_nodes as $k => $v) {
 
@@ -338,15 +350,13 @@ $this->logger->write(sprintf("Neighbors: %d", count($neighbor_nodes)));
 
 				$neighbor->g = $this->travelDistance($s->pt, $neighbor->pt);
 
-$this->logger->write(sprintf("start to neighbor (%d,%d) g dist: %d", $neighbor->pt[0], $neighbor->pt[1], $neighbor->g));
-$this->logger->write(sprintf("neighbor to goal dist: %d", $this->travelDistance($neighbor->pt, $g->pt)));
-$this->logger->write('open find: ' . $openset->find($neighbor));
-$this->logger->write('close find: ' . $closedset->find($neighbor));
+//$this->logger->write(sprintf("start to neighbor (%d,%d) g dist: %d", $neighbor->pt[0], $neighbor->pt[1], $neighbor->g));
+//$this->logger->write(sprintf("neighbor to goal dist: %d", $this->travelDistance($neighbor->pt, $g->pt)));
+//$this->logger->write('open find: ' . $openset->find($neighbor));
+//$this->logger->write('close find: ' . $closedset->find($neighbor));
 
 				if (($closedset->find($neighbor) !== false || $openset->find($neighbor) !== false) && $neighbor->g <= $newg) {
-
-$this->logger->write(sprintf("continue"));
-
+//$this->logger->write(sprintf("continue"));
 					continue;
 				}
 
