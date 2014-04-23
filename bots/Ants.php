@@ -44,9 +44,16 @@ class Ants {
     public $cols = 0;
     public $loadtime = 0;
     public $turntime = 0;
+
     public $viewradius2 = 0;
+	public $viewradius = 0;
+
     public $attackradius2 = 0;
+	public $attackradius = 0;
+
     public $spawnradius2 = 0;
+	public $spawnradius = 0;
+
     public $map;
     public $myAnts = array();
 	public $nMyAnts = 0;
@@ -136,14 +143,24 @@ class Ants {
             }
         }
 
+		if ($this->viewradius2) {
+			$this->viewradius = round(sqrt($this->viewradius2));
+		}
+
+		if ($this->attackradius2) {
+			$this->attackradius = round(sqrt($this->attackradius2));
+		}
+
+		if ($this->spawnradius2) {
+			$this->spawnradius = round(sqrt($this->attackradius2));
+		}
+
 		$this->terrainMap = new Map(array(
 			'rows' => $this->rows,
 			'columns' => $this->cols,
+			'viewradius2' => $this->viewradius2,
 			'defaultChar' => ($this->viewradius2) ? Ants::UNSEEN : Ants::LAND
 		));
-
-$this->logger->write('Terrian Map:');
-$this->logger->write($this->terrainMap);
 
 		$this->dumpGame(AntLogger::LOG_GAME_FLOW);
     }
@@ -205,43 +222,23 @@ $this->logger->write($this->terrainMap);
                     if ($tokens[0] == 'a') {				// a = live ant, format: w row col owner
                         $owner = (int)$tokens[3];
 						
-						// ????????????????????????????????
+						// put the new ant on the game map
                         $this->mapSet($row, $col, mb_substr(self::Alpha, $owner, 1));
 						
-						
-						$this->terrainMap->set(array($row, $col), Ants::LAND);
-
-						if($owner === 0) {
-							if ($this->turn === 1) {
-
-$this->logger->write(sprintf("viewradius2 %d", $this->viewradius2));
-
-								if ($this->viewradius2) {
-									$radius = round(sqrt($this->viewradius2));
-									$topRow = $row - $radius;
-									$lowRow = $row + $radius;
-									$leftCol = $col - $radius;
-									$rightCol = $col + $radius;
-
-$this->logger->write(sprintf("seen box %d %d %d %d %d", $radius, $topRow, $lowRow, $leftCol, $rightCol));
-
-									for ($r = $topRow; $r <= $lowRow; $r++) {
-										for ($c = $leftCol; $c <= $rightCol; $c++) {
-											if ($this->terrainMap->get(array($r,$c)) !== Ants::WATER) {
-												$this->terrainMap->set(array($r,$c), Ants::LAND);
-											}
-										}
-									}
-								}
-
+						if ($owner === 0) {
+							$ant = $this->lookupAnt($row, $col);
+							if ($ant) {
+								// do nothing?
+							} else {
 								$ant = $this->getNewAnt($row, $col, $owner, $this);
 								$this->addAnt($ant);
-							} else {
-								$ant = $this->lookupAnt($row, $col);
-								if (!$ant) {
-									$this->logger->write("Lost ant at $row, $col", AntLogger::LOG_ERROR);
-								}
+								$this->terrainMap->updateView(array($row, $col));
 							}
+
+							if (!$ant) {
+								$this->logger->write("Lost ant at $row, $col", AntLogger::LOG_ERROR);
+							}
+							
                         } else {
 							$this->enemyAnts[] = array($row, $col);
                         }
@@ -267,9 +264,9 @@ $this->logger->write(sprintf("seen box %d %d %d %d %d", $radius, $topRow, $lowRo
                     } elseif ($tokens[0] == 'h') {			// h = hill, format: w row col owner
                         $owner = (int)$tokens[3];
                         if ($owner === 0) {
-                            $this->myHills []= array($row, $col, $owner);
+                            $this->myHills[] = array($row, $col, $owner);
                         } else {
-                            $this->enemyHills []= array($row, $col, $owner);
+                            $this->enemyHills[] = array($row, $col, $owner);
                         }
 						$this->terrainMap->set(array($row, $col), Ants::LAND);
                     }
@@ -362,6 +359,9 @@ $this->logger->write(sprintf("Ants.passible(%d,%d) = %d", $row, $col, $retval));
 	 * @return array Return [direction], where direction = 'n'|'e'|'s'|'w' 
 	 */
     public function direction($row1, $col1, $row2, $col2) {
+
+$this->logger->write(sprintf("direction - entry %d,%d %d,%d", $row1, $col1, $row2, $col2), AntLogger::LOG_MISSION);
+
         $d = array();
         $row1 = $row1 % $this->rows;
         $row2 = $row2 % $this->rows;
@@ -432,17 +432,22 @@ $this->logger->write(sprintf("Ants.passible(%d,%d) = %d", $row, $col, $retval));
 					break;				
 			};
 
-
-$goalPt =	array(7, 18);
-
-			$mission = new MissionGoToPoint(array(
+			$farpoint = round(sqrt($this->rows*$this->rows + $this->cols*$this->cols));
+			
+			$mission = new MissionPatrol(array(
 				'debug' => DEBUG_LEVEL,
 				'game' => $game,
 				'startPt' => array($row, $col),
-				'goalPt' => $goalPt,
-				'terrainMap' => $this->terrainMap
+				'centerPt' => array($row, $col), // the hive
+				'terrainMap' => $this->terrainMap,
+				'firstTurn' => $this->turn,
+				'radius' => rand($this->attackradius, $farpoint)
 			));
-		
+
+			if (!$mission) {
+				throw new Exception('NO MISSSION');
+			}
+
 			$ant = new Ant(array(
 			'row' => $row,
 			'col' => $col, 
@@ -463,6 +468,9 @@ $goalPt =	array(7, 18);
 	 * @return boolean Return an Ant object on success, false otherwise;
 	 */
 	public function addAnt($ant) {
+
+//$this->logger->write(var_export($ant, true)); die();
+
 		if ($ant->owner !== 0) {
 			$this->logger->write('Ants.addAnt() - Not my ant', AntLogger::LOG_ERROR);
 		}
@@ -648,12 +656,18 @@ $goalPt =	array(7, 18);
 	
 	/**
 	 * get
-	 * 
+	 *
+	 * Input: pt or row,col
+	 *
 	 * @param array $pt Point
 	 * @return string
 	 */
-    public function mapGet ($pt) {
-		$wPt = $this->gridWrap($pt);
+    public function mapGet ($arg1, $arg2 = null) {
+		if (is_array($arg1)) {
+			$wPt = $this->gridWrap($arg1);
+		} else {
+			$wPt = $this->gridWrap(array($arg1, $arg2));
+		}
 		return $this->map[$wPt[0]][$wPt[1]];
 	}
 
@@ -665,16 +679,15 @@ $goalPt =	array(7, 18);
 	 * @param array $pt Point to set.
 	 * @param mixed $value Value of point.
 	 */
-    public function mapSet ($arg1, $arg2, $arg3) {
-		
+    public function mapSet ($arg1, $arg2, $arg3 = null) {
 		if (is_array($arg1)) {
 			$wPt = $this->gridWrap($arg1);
 			$value = $arg2;
-			$this->logger->write(sprintf("Ants.mapSet(%d,%d) -> (%d,%d) = %d", $arg1[0], $arg1[1], $wPt[0], $wPt[1], $value));
+//$this->logger->write(sprintf("Ants.mapSet(%d,%d) -> (%d,%d) = %d", $arg1[0], $arg1[1], $wPt[0], $wPt[1], $value));
 		} else {
 			$wPt = $this->gridWrap(array($arg1, $arg2));
 			$value = $arg3;
-			$this->logger->write(sprintf("Ants.mapSet(%d,%d) -> (%d,%d) = %d", $arg1, $arg2, $wPt[0], $wPt[1], $value));
+//$this->logger->write(sprintf("Ants.mapSet(%d,%d) -> (%d,%d) = %d", $arg1, $arg2, $wPt[0], $wPt[1], $value));
 		}
 
 		$this->map[$wPt[0]][$wPt[1]] = $value;
@@ -693,7 +706,7 @@ $goalPt =	array(7, 18);
 		$c = $col % $this->cols;
 		return array(
 			($row < 0) ? $r + $this->rows : $r,
-			($col < 0) ? $c + $this->columns : $c,
+			($col < 0) ? $c + $this->cols : $c,
 		);
 	}	
 	

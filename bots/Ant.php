@@ -18,6 +18,13 @@ class Ant {
 	protected $debug;
 	public $mission;
 
+	/**
+	 * The first turn the bot was alive, it's birthday.
+	 * 
+	 * @var type
+	 */
+	public $firstTurn;
+
 	const DEBUG_LEVEL_DEFAULT = AntLogger::LOG_ALL;
 
 	/**
@@ -35,7 +42,9 @@ class Ant {
 		$this->debug = (isset($args['debug'])) ?  $args['debug'] : self::DEBUG_LEVEL_DEFAULT;
 
 		$this->mission = (isset($args['mission'])) ?  $args['mission'] : false;
-		
+
+		$this->firstTurn = (isset($args['firstTurn'])) ?  $args['firstTurn'] : false;
+
 		$this->pos = array(
 			$args['row'],
 			$args['col']

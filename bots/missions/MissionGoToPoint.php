@@ -1,0 +1,216 @@
+<?php
+
+//require_once 'Mission.php';
+//require_once 'State.php';
+
+/**
+ * Ant mission to go a point on the map.
+ *
+ * @author gmorgan
+ */
+class MissionGoToPoint extends Mission {
+
+	public $goalPt = null;
+
+	protected $path = null;
+
+	/**
+	 * Call the parent constructor, then redefine the mission states
+	 *
+	 * @param array $args
+	 */
+	function __construct($args = array()) {
+
+		parent::__construct($args);
+
+		$this->goalPt = (isset($args['goalPt'])) ?  $args['goalPt'] : null;
+
+		if (!$this->goalPt) {
+			$this->logger->write(sprintf("%s Bad goal point.", $this), AntLogger::LOG_ANT | AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+		}
+
+		global $END_STATE;
+
+		$init_state = new State(array(
+			'id' => 'init',
+			'name' => 'Initialized',
+			'action' => array($this, 'init'),
+			'actionName' => 'Initialize Mission',
+			'events' => array(
+				array(
+					'test' => function ($ant, $data = array()) { return true; },
+					'next' => 'moving'
+				)
+			),
+			'debug' => $this->debug
+		));
+
+		$move_state = new State(array(
+			'id' => 'move',
+			'name' => 'moving',
+			'action' => array($this, 'move'),
+			'actionName' => 'Move next',
+			'events' => array (
+				array(
+					'test' => array(
+						function ($ant, $data = array(), $arg) {
+$arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant->row, $ant->col, $arg[0]->goalPt[0], $arg[0]->goalPt[1]));
+							return $arg[0]->goalPt === $ant->pos; },
+						array($this)
+					),
+					'next' => 'end'
+				)
+			),
+			'debug' => $this->debug
+		));
+
+		$this->states = array(
+			'init' => $init_state,
+			'moving' => $move_state,
+			'end' => $END_STATE,
+			'stuck' => $STUCK_STATE,
+		);
+
+		$initialState = $init_state;
+		$endState = $END_STATE;
+
+		$this->state = $init_state;
+
+		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_MISSION | AntLogger::LOG_MISSION);
+	}
+
+	/**
+	 * Get a move for $ant for this mission based on $game.
+	 *
+	 * @param Ant $ant This ant.
+	 * @param Ants $game is the Ants game data.
+	 * @return boolean
+	 */
+	function init ($ant, Ants $game) {
+
+//$this->logger->write(sprintf("Mission init 1 %d,%d  %d,%d-------------------------------------------",$ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]));
+
+		$path = $game->terrainMap->findPath(array($ant->row, $ant->col), $this->goalPt);
+
+		if (!$path) {
+			$this->logger->write(sprintf("State init - pathFind failed for (%d,%d) to (%d,%d)  Using current point.", $ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+			//$path = array(array($ant->row, $ant->col));
+			$this->path = false;
+		}
+
+//$this->logger->write('path: ' . var_export($path, true));
+
+		$this->path = $path;
+	}
+
+	/**
+	 * Move along path.
+	 *
+	 * @param Ant $ant This ant.
+	 * @param Ants $game is the Ants game data.
+	 * @return string|false Returns the direction to move next turn on success, false if nowhere to go.
+	 */
+//	function move ($ant, Ants $game) {
+//
+//		if (!$this->path) {
+//			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+//			return false;
+//		}
+//
+//		$nextPt = array_shift($this->path);
+//
+//		if (!$nextPt) {
+//			$this->logger->write(sprintf("%s", $this) . ' SHIFT FAILED?.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+//			return false;
+//		}
+//
+//		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
+//
+//		// is the dest coord ok?
+//		$passable = $game->passable($nextPt[0], $nextPt[1]);									// myMap->passable()
+//		if ($passable) {
+//
+//			if ($ant->firstTurn % $game->viewradius === 0) {
+//				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
+//			}
+//
+//			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+//			$game->issueOrder($ant->row, $ant->col, $direction[0]);
+//			$ant->pos = array($nextPt[0], $nextPt[1]);
+//			$stuck = 0;
+//			return $direction;
+//		} else {
+//			// for some reason the path is blocked - another ant?, put the point
+//			// back on the path and wait a turn.  After that?  Recalc?  Solution
+//			// needs to avoid deadlock.
+//			$stuck++;
+//			array_unshift($this->path, $nextPt);
+//			$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+//
+//			if ($stuck > $this->stuckThreshold) {
+//				$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+//			}
+//		}
+//
+//		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
+//
+//		return false;
+//
+//	} //move
+
+	/**
+	 * getNextMove
+	 *
+	 * @param Ant $ant
+	 * @param Ants $game
+	 * @return array|boolean Return the point for the next move
+	 */
+	protected function getNextMove(Ant $ant, Ants $game) {	
+		
+		if (!$this->path) {
+			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+			return false;
+		}
+
+		$nextPt = array_shift($this->path);
+
+		if (!$nextPt) {
+			$this->logger->write(sprintf("%s", $this) . ' SHIFT FAILED?.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+			return false;
+		}
+		
+		array_unshift($this->path, $nextPt);
+		
+		$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+
+		$passable = $game->passable($nextPt[0], $nextPt[1]);
+		
+		if ($passable) {
+			return array($nextPt[0], $nextPt[1]);
+		}
+
+		// for some reason the path is blocked - another ant?, put the point
+		// back on the path and wait a turn.  After that?  Recalc?  Solution
+		// needs to avoid deadlock.
+		$this->stuck++;
+
+		array_unshift($this->path, $nextPt);
+
+		$this->logger->write(sprintf("%s Path (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+
+		if ($this->stuck > $this->stuckThreshold) {
+			$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $this->stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+		}
+
+		if ($this->stuck > $this->stuckThreshold) {
+			$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $this->stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+		}			
+		
+		return false;
+	}
+		
+		
+} //  MissionGoToPoint
+
+
+// end file

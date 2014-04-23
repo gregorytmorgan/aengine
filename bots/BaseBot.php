@@ -17,7 +17,6 @@ class BaseBot {
 
 		$game->logger->write('doTurns for ' . $game->nMyAnts . ' ants.', AntLogger::LOG_GAME_FLOW);
 
-		list($usec, $sec) = explode(" ", microtime());
 		$doTurnsStart = $game->getElapsedTime();
 		
         foreach ($game->myAnts as $i => $ant) {

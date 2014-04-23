@@ -23,6 +23,9 @@ class Map {
 
 	public $columns;
 
+    public $viewradius2 = 0;
+	public $viewradius = 0;
+
 	/**
 	 *
 	 * @param array $args
@@ -31,6 +34,7 @@ class Map {
 		$this->id = (isset($args['id'])) ? $args['id'] : get_class($this) . Map::$instance;
 		$this->name = (isset($args['name'])) ?  $args['name'] : get_class($this) . ' #' . Map::$instance;
 		$this->debug = (isset($args['debug'])) ?  $args['debug'] : self::DEBUG_LEVEL_DEFAULT;
+		$this->viewradius2 = (isset($args['viewradius2'])) ? $args['viewradius2'] : 0;
 		$this->defaultChar = (isset($args['defaultChar'])) ? $args['defaultChar'] : '?';
 		
 		if (isset($args['map'])) {
@@ -52,6 +56,10 @@ class Map {
 			'logLevel' => $this->debug,
 //			'output' => STDERR
 		));
+
+		if ($this->viewradius2) {
+			$this->viewradius = round(sqrt($this->viewradius2));
+		}
 
 		Map::$instance++;
 
@@ -79,9 +87,13 @@ class Map {
 	 * @param array $pt Point
 	 * @return string
 	 */
-    public function get ($pt) {
-		$wrappedPt = $this->gridWrap($pt);
-		return $this->grid[$wrappedPt[0]][$wrappedPt[1]];
+    public function get ($arg1, $arg2 = null) {
+		if (is_array($arg1)) {
+			$wPt = $this->gridWrap($arg1);
+		} else {
+			$wPt = $this->gridWrap(array($arg1, $arg2));
+		}
+		return $this->grid[$wPt[0]][$wPt[1]];
 	}
 
 	/**
@@ -89,16 +101,15 @@ class Map {
 	 * @param type $pt
 	 * @param type $value
 	 */
-    public function set ($arg1, $arg2, $arg3) {
-		
+    public function set ($arg1, $arg2, $arg3 = null) {
 		if (is_array($arg1)) {
 			$wPt = $this->gridWrap($arg1);
 			$value = $arg2;
-			$this->logger->write(sprintf("Map.set(%d,%d) -> (%d,%d) = %d", $arg1[0], $arg1[1], $wPt[0], $wPt[1], $value));
+//$this->logger->write(sprintf("Map.set(%d,%d) -> (%d,%d) = %d", $arg1[0], $arg1[1], $wPt[0], $wPt[1], $value));
 		} else {
 			$wPt = $this->gridWrap(array($arg1, $arg2));
 			$value = $arg3;
-			$this->logger->write(sprintf("Map.set(%d,%d) -> (%d,%d) = %d", $arg1, $arg2, $wPt[0], $wPt[1], $value));
+//$this->logger->write(sprintf("Map.set(%d,%d) -> (%d,%d) = %d", $arg1, $arg2, $wPt[0], $wPt[1], $value));
 		}		
 		
 		$this->grid[$wPt[0]][$wPt[1]] = $value;
@@ -125,21 +136,55 @@ class Map {
 	 * passible
 	 *
 	 * @param array $pt
-	 * @param integer $mode
 	 * @return boolean
 	 */
-    public function passible($pt, $mode = 0) {
-
+    public function passible($pt) {
 		$r = $pt[0];
 		$c = $pt[1];
 
-//		if ($r < 0 || $r >= $this->rows || $c < 0 || $c >= $this->columns) {
-//			return false;
-//		}
+		$retval = $this->get($r, $c) > Ants::WATER;
 
-		return $this->get($r, $c) > Ants::WATER; // || $this->grid[$r][$c] === Ants::UNSEEN;
+	$this->logger->write(sprintf("Map.passible(%d,%d) = %d", $r, $c, $retval));
+
+		return $retval; // || $this->grid[$r][$c] === Ants::UNSEEN;
 	}
 
+	/**
+	 * updateView
+	 *
+	 * @param array $pt
+	 * @param integer $mode
+	 * @return boolean
+	 */
+    public function updateView($pt) {
+		$row = $pt[0];
+		$col = $pt[1];
+
+		if ($this->viewradius2) {
+			$radius = round(sqrt($this->viewradius2));
+			$topRow = $row - $radius;
+			$lowRow = $row + $radius;
+			$leftCol = $col - $radius;
+			$rightCol = $col + $radius;
+
+//$this->logger->write(sprintf("seen box %d %d %d %d %d", $radius, $topRow, $lowRow, $leftCol, $rightCol));
+
+			for ($r = $topRow; $r <= $lowRow; $r++) {
+				$dr = abs($row - $r);
+				$r2 = $dr * $dr;
+				for ($c = $leftCol; $c <= $rightCol; $c++) {
+					$cr = abs($col - $c);
+					if ($r2 + $cr*$cr <= $this->viewradius2) {
+						if ($this->get(array($r, $c)) !== Ants::WATER) {
+							$this->set(array($r, $c), Ants::LAND);
+						}
+					} else {
+//$this->logger->write(sprintf("seen 2  %d,%d %d", $r, $c, $this->viewradius2));
+					}
+				}
+			}
+		}
+	}
 	//
 	// http://www.gamasutra.com/view/feature/131724/smart_move_intelligent_.php?print=1
 	//

@@ -1,6 +1,9 @@
 <?php
 
 require_once 'State.php';
+require_once 'missions/MissionGoToPoint.php';
+require_once 'missions/MissionGoNESW.php';
+require_once 'missions/MissionPatrol.php';
 
 /**
  * Ant mission - simple state machine for ant actions.
@@ -24,6 +27,19 @@ class Mission {
 	protected $initialState;
 
 	protected $endState;
+
+	/**
+	 * How many times a move has failed
+	 * @var type
+	 */
+	protected $stuck = 0;
+
+	/**
+	 * Try something else after a while
+	 *
+	 * @var type
+	 */
+	protected $stuckThreshold = 2;
 
 	/**
 	 * The current state of the Mission.
@@ -59,7 +75,8 @@ class Mission {
 
 		$this->states = array(
 			'init' => $INIT_STATE,
-			'end' => $END_STATE
+			'end' => $END_STATE,
+			'stuck' => $STUCK_STATE,
 		);
 
 		$initialState = $INIT_STATE;
@@ -166,7 +183,86 @@ class Mission {
 		
 		return $result;
 	}	
-	
+
+	/**
+	 * Move along a set of waypoints. The patrol move path will be set in the transition event
+	 *
+	 * @param Ant $ant This ant.
+	 * @param Ants $game is the Ants game data.
+	 * @return string|false Returns the direction to move next turn on success, false if nowhere to go.
+	 */
+	function move (Ant $ant, Ants $game) {
+
+		// is the dest coord ok?
+		//$passable = $game->passable($nextPt[0], $nextPt[1]);
+
+		$nextPt = $this->getNextMove($ant, $game);
+
+		// direction will be an empty array if pt0 == pt1
+		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
+
+		if ($nextPt && $direction) {
+			$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
+
+			if ($ant->firstTurn % $game->viewradius === 0) {
+				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
+			}
+
+	$this->logger->write(var_export($direction, true));
+	$this->logger->write(var_export($direction[0], true));
+
+			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+			$game->issueOrder($ant->row, $ant->col, $direction[0]);
+			$ant->pos = array($nextPt[0], $nextPt[1]);
+			$stuck = 0;
+			return true;
+		}
+
+//			if ($passable) {
+//
+//				$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
+//
+//				if ($ant->firstTurn % $game->viewradius === 0) {
+//					$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
+//				}
+//
+//				$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+//				$game->issueOrder($ant->row, $ant->col, $direction[0]);
+//				$ant->pos = array($nextPt[0], $nextPt[1]);
+//				$stuck = 0;
+//				return $direction;
+//			} else {
+//				// for some reason the path is blocked - another ant?, put the point
+//				// back on the path and wait a turn.  After that?  Recalc?  Solution
+//				// needs to avoid deadlock.
+//				$stuck++;
+//				array_unshift($this->path, $nextPt);
+//				$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+//
+//				if ($stuck > $this->stuckThreshold) {
+//					$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+//				}
+//			}
+
+
+
+		//$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
+
+		return false;
+
+	} //move
+
+	/**
+	 * getNextMove
+	 *
+	 * @param Ant $ant
+	 * @param Ants $game
+	 * @return string|boolean
+	 */
+	protected function getNextMove(Ant $ant, Ants $game) {
+		throw new Exception ('Override this function to return n|e|s|w');
+	}
+
 	/**
 	 * 
 	 * @return string
@@ -185,259 +281,5 @@ class Mission {
     }
 
 }
-
-/**
- * Ant mission to go straight until an obstacle is encountered, then turn
- * N, E, S, W.
- *
- * @author gmorgan
- */
-class MissionGoNESW extends Mission {
-
-	/**
-	 * Call the parent constructor, then redefine the mission states
-	 * 
-	 * @param array $args
-	 */
-	function __construct($args = array()) {
-		
-		parent::__construct($args);
-
-		global $END_STATE;
-		
-		$init_state = new State(array(
-			'id' => 'init',
-			'name' => 'Initialized',
-			'action' => false,
-			'actionName' => 'NoAction',
-			'events' => array(
-				array(
-					'test' => function ($ant, $data = array()) { return true; },
-					'next' => 'moving'
-				)
-			),
-			'debug' => $this->debug
-		));
-
-		$move_state = new State(array(
-			'id' => 'move',
-			'name' => 'Moving',
-			'action' => array($this, 'move'),
-			'actionName' => 'Move NESW',
-			'events' => array (
-				array(
-					'test' => function ($ant, $data = array()) { return false; },
-					'next' => 'end'
-				)
-			),
-			'debug' => $this->debug
-		));
-			
-		$this->states = array(
-			'init' => $init_state,
-			'moving' => $move_state,
-			'end' => $END_STATE
-		);			
-
-		$initialState = $init_state;
-		$endState = $END_STATE;
-
-		$this->state = $init_state;
-
-		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_MISSION);
-	}
-	
-	/**
-	 * Get a move for $ant for this mission based on $game.
-	 * 
-	 * @param Ant $ant This ant.
-	 * @param Ants $game is the Ants game data.
-	 * @return string|false Returns the direction to move next turn on success, false if nowhere to go.
-	 */
-	function move ($ant, Ants $game) {
-		$directions = array('n', 'e', 's', 'w');
-
-		foreach ($directions as $direction) {
-			
-			// from the current position, what coords result if we travel $direction? 
-			list($dRow, $dCol) = $game->destination($ant->row, $ant->col, $direction);	// myMap->destination()
-			
-			// is the dest coord ok?
-			$passable = $game->passable($dRow, $dCol);									// myMap->passable()
-			if ($passable) {
-				$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction, $dRow, $dCol), AntLogger::LOG_MISSION);
-				$game->issueOrder($ant->row, $ant->col, $direction);
-				//$game->map[$row][$col] = LAND;											// myMap->update()
-				$ant->pos = array($dRow, $dCol);										// myMap->update()
-				return $direction;
-			}
-		} // directions
-
-		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
-
-		return false;
-
-	} //move
-	
-}
-
-
-/**
- * Ant mission to go a point on the map.
- *
- * @author gmorgan
- */
-class MissionGoToPoint extends Mission {
-	
-	protected $terrainMap = null;
-	
-	public $goalPt = null;
-	
-	protected $path = null;
-	
-	/**
-	 * Call the parent constructor, then redefine the mission states
-	 * 
-	 * @param array $args
-	 */
-	function __construct($args = array()) {
-		
-		parent::__construct($args);
-
-		$this->goalPt = (isset($args['goalPt'])) ?  $args['goalPt'] : null;
-
-		if (!$this->goalPt) {
-			$this->logger->write(sprintf("%s Bad goal point.", $this), AntLogger::LOG_ANT | AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-		}
-		
-		global $END_STATE;
-
-		$this->terrainMap = (isset($args['terrainMap'])) ? $args['terrainMap'] : false;
-
-		if (!$this->terrainMap) {
-			$this->logger->write('No terrain map.', AntLogger::LOG_ANT | AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-		}
-		
-		$init_state = new State(array(
-			'id' => 'init',
-			'name' => 'Initialized',
-			'action' => array($this, 'init'),
-			'actionName' => 'Initialize Mission',
-			'events' => array(
-				array(
-					'test' => function ($ant, $data = array()) { return true; },
-					'next' => 'moving'
-				)
-			),
-			'debug' => $this->debug
-		));
-
-		$move_state = new State(array(
-			'id' => 'move',
-			'name' => 'moving',
-			'action' => array($this, 'move'),
-			'actionName' => 'Move next',
-			'events' => array (
-				array(
-					'test' => array(
-						function ($ant, $data = array(), $arg) {
-$arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant->row, $ant->col, $arg[0]->goalPt[0], $arg[0]->goalPt[1]));
-							return $arg[0]->goalPt === $ant->pos; },
-						array($this)
-					),
-					'next' => 'end'
-				)
-			),
-			'debug' => $this->debug
-		));
-			
-		$this->states = array(
-			'init' => $init_state,
-			'moving' => $move_state,
-			'end' => $END_STATE
-		);			
-
-		$initialState = $init_state;
-		$endState = $END_STATE;
-		
-		$this->state = $init_state;
-
-		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_MISSION | AntLogger::LOG_MISSION);
-	}
-	
-	/**
-	 * Get a move for $ant for this mission based on $game.
-	 * 
-	 * @param Ant $ant This ant.
-	 * @param Ants $game is the Ants game data.
-	 * @return boolean
-	 */
-	function init ($ant, Ants $game) {
-		
-$this->logger->write(sprintf("Mission init 1 %d,%d  %d,%d-------------------------------------------",$ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]));	
-
-		$path = $game->terrainMap->findPath(array($ant->row, $ant->col), $this->goalPt);
-
-		if (!$path) {
-			$this->logger->write(sprintf("State init - pathFind failed for (%d,%d) to (%d,%d)  Using current point.", $ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-			//$path = array(array($ant->row, $ant->col));
-			$this->path = false;
-		}
-
-$this->logger->write('path: ' . var_export($path, true));
-
-
-		$this->path = $path;
-	}
-	
-	/**
-	 * Move along path.
-	 * 
-	 * @param Ant $ant This ant.
-	 * @param Ants $game is the Ants game data.
-	 * @return string|false Returns the direction to move next turn on success, false if nowhere to go.
-	 */
-	function move ($ant, Ants $game) {
-
-		if (!$this->path) {
-			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-			return false;
-		}
-		
-		$nextPt = array_shift($this->path);
-
-		if (!$nextPt) {
-			$this->logger->write(sprintf("%s", $this) . ' SHIFT FAILED?.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-			return false;
-		}
-
-		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
-
-		// is the dest coord ok?
-		$passable = $game->passable($nextPt[0], $nextPt[1]);									// myMap->passable()
-		if ($passable) {
-			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
-			$game->issueOrder($ant->row, $ant->col, $direction[0]);
-			//$game->map[$row][$col] = LAND;											// myMap->update()
-			$ant->pos = array($nextPt[0], $nextPt[1]);										// myMap->update()
-			return $direction;
-		} else {
-			// for some reason the path is blocked - another ant?, put the point 
-			// back on the path and wait a turn.  After that?  Recalc?  Solution 
-			// needs to avoid deadlock.
-			array_unshift($this->path, $nextPt);
-			$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
-		}
-
-		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
-
-		return false;
-
-	} //move
-	
-	
-} //  MissionGoToPoint
-
-
 
 // end file

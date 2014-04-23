@@ -131,4 +131,18 @@ $END_STATE = new State(array(
 	'debug' => AntLogger::LOG_NONE
 ));
 
+$STUCK_STATE = new State(array(
+	'id' => 'stuck',
+	'name' => 'Stuck',
+	'action' => false,
+	'actionName' => 'NoAction',
+	'events' => array(
+		array(
+			'test' => function ($ant, $data = array()) { return false; },
+			'next' => null
+		)
+	),
+	'debug' => AntLogger::LOG_NONE
+));
+
 // end file
