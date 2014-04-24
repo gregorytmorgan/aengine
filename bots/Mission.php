@@ -130,8 +130,10 @@ class Mission {
 	}
 
 	/**
-	 * doTurn
+	 * doTurn 
 	 *
+	 * Move to a new square, do an action.
+	 * 
 	 * @param Ant $ant
 	 * @param object $game Game data
 	 * @return mixed
@@ -139,23 +141,6 @@ class Mission {
 	function doTurn(Ant $ant, $game = array()) {
 		$result = null;
 
-		// do the action for the turn
-		if ($this->state->action) {
-			if (is_callable($this->state->action) || (isset($this->state->action[0]) && is_callable($this->state->action[0]))) {
-				$this->logger->write($ant->name . ' - Firing ant action "' . $this->state->actionName . '"', AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MISSION);
-				if (is_callable($this->state->action)) {
-					$result = call_user_func_array($this->state->action, array($ant, $game));
-				} else {
-					$args = array($ant, $game);
-					if (isset($this->state->action[1]) && is_array($this->state->action[1])) {
-						array_push($args, $this->state->action[1]);
-					}
-					$result = call_user_func_array($this->state->action[0], $args);
-				}
-			} else {
-				$this->logger->write($ant->name . ' action is not callable(' . $this->state->actionName . ')', AntLogger::LOG_ERROR);
-			}
-		}
 
 		// check for events that might trigger a state change
 		foreach ($this->state->events as $evt) {
@@ -183,12 +168,31 @@ class Mission {
 				$this->logger->write('Event test for state ' . sprintf("%s", $this->state) . ' is not callable', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
 			}
 		}
+
+		// do the action for the turn
+		if ($this->state->action) {
+			if (is_callable($this->state->action) || (isset($this->state->action[0]) && is_callable($this->state->action[0]))) {
+				$this->logger->write($ant->name . ' - Firing ant action "' . $this->state->actionName . '"', AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MISSION);
+				if (is_callable($this->state->action)) {
+					$result = call_user_func_array($this->state->action, array($ant, $game));
+				} else {
+					$args = array($ant, $game);
+					if (isset($this->state->action[1]) && is_array($this->state->action[1])) {
+						array_push($args, $this->state->action[1]);
+					}
+					$result = call_user_func_array($this->state->action[0], $args);
+				}
+			} else {
+				$this->logger->write($ant->name . ' action is not callable(' . $this->state->actionName . ')', AntLogger::LOG_ERROR);
+			}
+		}		
+		
 		
 		return $result;
 	}	
 
 	/**
-	 * Move along a set of waypoints. The patrol move path will be set in the transition event
+	 * Move along a set of points. The patrol move path will be set in the transition event
 	 *
 	 * @param Ant $ant This ant.
 	 * @param Ants $game is the Ants game data.
@@ -220,35 +224,8 @@ $this->logger->write(sprintf("Path: %s", $this->printPath($this->path)));
 			return true;
 		}
 
-//			if ($passable) {
-//
-//				$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
-//
-//				if ($ant->firstTurn % $game->viewradius === 0) {
-//					$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
-//				}
-//
-//				$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
-//				$game->issueOrder($ant->row, $ant->col, $direction[0]);
-//				$ant->pos = array($nextPt[0], $nextPt[1]);
-//				$stuck = 0;
-//				return $direction;
-//			} else {
-//				// for some reason the path is blocked - another ant?, put the point
-//				// back on the path and wait a turn.  After that?  Recalc?  Solution
-//				// needs to avoid deadlock.
-//				$stuck++;
-//				array_unshift($this->path, $nextPt);
-//				$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
-//
-//				if ($stuck > $this->stuckThreshold) {
-//					$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
-//				}
-//			}
 
-
-
-		//$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
+		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
 
 		return false;
 
