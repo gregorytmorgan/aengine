@@ -200,11 +200,6 @@ class Mission {
 	 */
 	function move (Ant $ant, Ants $game) {
 
-		// is the dest coord ok?
-		//$passable = $game->passable($nextPt[0], $nextPt[1]);
-
-$this->logger->write(sprintf("Path: %s", $this->printPath($this->path)));		
-		
 		$nextPt = $this->getNextMove($ant, $game);
 
 		// direction will be an empty array if pt0 == pt1
@@ -217,13 +212,12 @@ $this->logger->write(sprintf("Path: %s", $this->printPath($this->path)));
 				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
 			}
 
-			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+			$this->logger->write(sprintf("%s moved %s to %d,%d", $ant->name, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
 			$game->issueOrder($ant->row, $ant->col, $direction[0]);
 			$ant->pos = array($nextPt[0], $nextPt[1]);
 			$stuck = 0;
 			return true;
 		}
-
 
 		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
 

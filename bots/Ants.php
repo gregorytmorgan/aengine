@@ -33,8 +33,8 @@ class Ants {
 	const LAND = -2;		// LAND
 	const FOOD = -3;		// LAND
 	const HIVE = -4;	// LAND
-	const WATER = -5;
-	const UNSEEN = -6;
+	const UNSEEN = -5;
+	const WATER = -6;
 
 	const Alpha = 'abcdefghijslmnopqrstuvwxyz';
 
@@ -106,7 +106,7 @@ class Ants {
 		$this->gameStartTime = (float)$sec + (float)$usec;
 		
 		$this->logger = new AntLogger(array(
-			'logLevel' =>  DEBUG_LEVEL  // - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
+			'logLevel' =>  DEBUG_LEVEL  - AntLogger::LOG_MAPDUMP // - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
 		));
 	}
 	
@@ -207,6 +207,8 @@ class Ants {
         $this->myHills = array();
         $this->enemyHills = array();
 
+		$myAntCount = 0;
+
 		// turn input processing
 		//
         // update map and create new ant and food lists
@@ -215,7 +217,6 @@ class Ants {
         foreach ($data as $line) {
             if (strlen($line) > 0) {
                 $tokens = explode(' ',$line);
-
                 if (count($tokens) >= 3) {
                     $row = (int)$tokens[1];
                     $col = (int)$tokens[2];
@@ -226,9 +227,10 @@ class Ants {
                         $this->mapSet($row, $col, mb_substr(self::Alpha, $owner, 1));
 						
 						if ($owner === 0) {
+							$myAntCount++; // for lost ant check;
 							$ant = $this->lookupAnt($row, $col);
 							if ($ant) {
-								// do nothing?
+								// ?
 							} else {
 								$ant = $this->getNewAnt($row, $col, $owner, $this);
 								$this->addAnt($ant);
@@ -250,17 +252,15 @@ class Ants {
                         $this->mapSet($row, $col, Ants::WATER);
 						$this->terrainMap->set(array($row, $col), Ants::WATER);
                     } elseif ($tokens[0] == 'd') {			// dead ant, format: d row col owner
-						$this->deadAnts[] = array($row,$col);
-                        $this->terrainMap->set(array($row, $col), Ants::LAND);
-						if (DEBUG_LEVEL) {
-							$ant = $this->lookupAnt($row, $col);
-							if ($ant) {
-								$this->logger->write(sprintf("<RED>CASUALTY: %s</RED>", $ant), AntLogger::LOG_GAME_FLOW);
-							} else {
-								$this->logger->write(sprintf("<GREEN>KILLED: (%d, %d)</GREEN>", $row, $col), AntLogger::LOG_GAME_FLOW);
-							}
+						$this->terrainMap->set(array($row, $col), Ants::LAND);
+						$owner = (int)$tokens[3];
+						//$ant = $this->lookupAnt($row, $col);
+						if ($owner) {
+							$this->logger->write(sprintf("<GREEN>KILLED: (%d, %d)</GREEN>", $row, $col), AntLogger::LOG_GAME_FLOW);
+						} else {
+							$this->logger->write(sprintf("<RED>CASUALTY: %s</RED>", $ant), AntLogger::LOG_GAME_FLOW);
 						}
-						$this->deadAnts[] = array($row,$col);
+						$this->killAnt($ant);
                     } elseif ($tokens[0] == 'h') {			// h = hill, format: w row col owner
                         $owner = (int)$tokens[3];
                         if ($owner === 0) {
@@ -274,10 +274,14 @@ class Ants {
             } // not empty line
         } // each line
 
-		$this->dumpMap(AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MAPDUMP);
+		$this->dumpMap(AntLogger::LOG_MAPDUMP);
+		$this->logger->write("Terrian Map:", AntLogger::LOG_MAPDUMP); 
+		$this->logger->write($this->terrainMap, AntLogger::LOG_MAPDUMP);
 
-		$this->logger->write("Terrian Map:", AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MAPDUMP); 
-		$this->logger->write($this->terrainMap, AntLogger::LOG_GAME_FLOW | AntLogger::LOG_MAPDUMP);
+		if ($myAntCount !== count($this->myAnts)) {
+			$this->logger->write("Ant count error.  Server says:" . $myAntCount . " Game count:" . count($this->myAnts), AntLogger::LOG_ERROR);
+			$this->dumpAnts(AntLogger::LOG_ERROR);
+		}
 
 		$this->logger->write("Update processing for turn " . $this->turn . " complete", AntLogger::LOG_GAME_FLOW);
     }
@@ -293,7 +297,7 @@ class Ants {
 		
 		$retval = $this->mapGet($row, $col);
 		
-$this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
+//$this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
 		
         return $retval > Ants::WATER;
     }
@@ -441,7 +445,8 @@ $this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
 				'centerPt' => array($row, $col), // the hive
 				'terrainMap' => $this->terrainMap,
 				'firstTurn' => $this->turn,
-				'radius' => rand($this->attackradius, $farpoint)
+				//'radius' => rand($this->attackradius, $farpoint)
+				'radius' => 10
 			));
 
 			if (!$mission) {
@@ -468,16 +473,15 @@ $this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
 	 * @return boolean Return an Ant object on success, false otherwise;
 	 */
 	public function addAnt($ant) {
-
-//$this->logger->write(var_export($ant, true)); die();
-
 		if ($ant->owner !== 0) {
 			$this->logger->write('Ants.addAnt() - Not my ant', AntLogger::LOG_ERROR);
 		}
 		$this->myAnts[] = $ant;
 		$this->nMyAnts++;
 	}
-	
+
+
+
 	/**
 	 * Lookup one of my ants based on it's position.
 	 * 
@@ -503,6 +507,30 @@ $this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
 
 		return false;
 	}
+
+	/**
+	 * Move an ant to the deadAnts list. Set state to dead if frendly.
+	 *
+	 * @param object|array $ant Takes an Ant object or simple point identifier.
+	 * @return void
+	 */
+	public function killAnt($ant) {
+
+\CakeLog::write('debug', 'killAnt - entry ' . $ant->row. ',' . $ant->col);
+
+		for ($i = 0; $i < $this->nMyAnts; $i++) {
+			$ant = $this->myAnts[$i];
+			if ($ant->row === $row && $ant->col == $col) {
+
+\CakeLog::write('debug', 'killAnt - found ' . $ant->row. ',' . $ant->col);
+
+				//$ant->mission->setState('dead');
+				array_splice($this->nMyAnts, $i, 1);
+			}
+		}
+		$this->deadAnts[] = $ant;
+	}
+
 
 	/**
 	 * Is map[r,c] a hive? If so, return the owner.
@@ -729,6 +757,9 @@ $this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
 				$ants->update($map_data);
 				$bot->doTurn($ants); // ants == game data
 				$ants->finishTurn();
+
+// throw new Exception('debug die in Ants run loop'); // do one game turn
+
 				$map_data = array();
 			} else {
 				$map_data[] = $current_line;

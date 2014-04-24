@@ -62,43 +62,6 @@ class MissionGoNESW extends Mission {
 	}
 
 	/**
-	 * Get a move for $ant for this mission based on $game.
-	 *
-	 * @param Ant $ant This ant.
-	 * @param Ants $game is the Ants game data.
-	 * @return string|false Returns the direction to move next turn on success, false if nowhere to go.
-	 */
-//	function move ($ant, Ants $game) {
-//		$directions = array('n', 'e', 's', 'w');
-//
-//		foreach ($directions as $direction) {
-//
-//			// from the current position, what coords result if we travel $direction?
-//			list($dRow, $dCol) = $game->destination($ant->row, $ant->col, $direction);	// myMap->destination()
-//
-//			// is the dest coord ok?
-//			$passable = $game->passable($dRow, $dCol);									// myMap->passable()
-//			if ($passable) {
-//
-//				if ($ant->firstTurn % $game->viewradius === 0) {
-//					$game->terrainMap->updateView(array($dRow, $dCol), Ants::LAND);
-//				}
-//
-//				$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction, $dRow, $dCol), AntLogger::LOG_MISSION);
-//				$game->issueOrder($ant->row, $ant->col, $direction);
-//				//$game->map[$row][$col] = LAND;											// myMap->update()
-//				$ant->pos = array($dRow, $dCol);										// myMap->update()
-//				return $direction;
-//			}
-//		} // directions
-//
-//		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
-//
-//		return false;
-//
-//	} //move
-
-	/**
 	 * getNextMove
 	 *
 	 * @param Ant $ant

@@ -104,61 +104,6 @@ $arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant-
 	}
 
 	/**
-	 * Move along path.
-	 *
-	 * @param Ant $ant This ant.
-	 * @param Ants $game is the Ants game data.
-	 * @return string|false Returns the direction to move next turn on success, false if nowhere to go.
-	 */
-//	function move ($ant, Ants $game) {
-//
-//		if (!$this->path) {
-//			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-//			return false;
-//		}
-//
-//		$nextPt = array_shift($this->path);
-//
-//		if (!$nextPt) {
-//			$this->logger->write(sprintf("%s", $this) . ' SHIFT FAILED?.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-//			return false;
-//		}
-//
-//		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
-//
-//		// is the dest coord ok?
-//		$passable = $game->passable($nextPt[0], $nextPt[1]);									// myMap->passable()
-//		if ($passable) {
-//
-//			if ($ant->firstTurn % $game->viewradius === 0) {
-//				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
-//			}
-//
-//			$this->logger->write(sprintf("%s %s moved %s to %d,%d", $ant->name, $this, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
-//			$game->issueOrder($ant->row, $ant->col, $direction[0]);
-//			$ant->pos = array($nextPt[0], $nextPt[1]);
-//			$stuck = 0;
-//			return $direction;
-//		} else {
-//			// for some reason the path is blocked - another ant?, put the point
-//			// back on the path and wait a turn.  After that?  Recalc?  Solution
-//			// needs to avoid deadlock.
-//			$stuck++;
-//			array_unshift($this->path, $nextPt);
-//			$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
-//
-//			if ($stuck > $this->stuckThreshold) {
-//				$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
-//			}
-//		}
-//
-//		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
-//
-//		return false;
-//
-//	} //move
-
-	/**
 	 * getNextMove
 	 *
 	 * @param Ant $ant
