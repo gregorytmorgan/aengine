@@ -1,6 +1,7 @@
 
 Netbeans Project Config
 ===============================================================
+Php: 	/usr/bin/php
 Index:				exec.php
 Arguments:			"./test_bot.sh 'php -f ../bots/MyBot.php'"
 Working Directory:	/home/gmorgan/dev/aengine/tools

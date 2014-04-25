@@ -36,6 +36,10 @@ class Ants {
 	const UNSEEN = -5;
 	const WATER = -6;
 
+	const TURN_DEFER = '_TURN_DEFER_';
+	const TURN_OK = '_TURN_OK_';
+	const TURN_FAIL = '_TURN_FAIL_';
+	
 	const Alpha = 'abcdefghijslmnopqrstuvwxyz';
 
     public $turns = 0;
@@ -65,6 +69,7 @@ class Ants {
 
 	public $gameStartTime = 0;
 	public $terrainMap = null;
+	public $antMap = null; // not used yet
 
 	/**
 	 * Food NOT be gathered
@@ -325,7 +330,7 @@ class Ants {
 		for ($i = 0, $len = count($this->food); $i < $len; $i++) {
 			if ($this->food[$i][2] !== $this->turn) {
 
-	$this->logger->write("Food at " . $this->food[$i][0] . "," . $this->food[$i][1] . "is gone.", AntLogger::LOG_GAME_FLOW);
+	$this->logger->write("Food at " . $this->food[$i][0] . "," . $this->food[$i][1] . " is gone.", AntLogger::LOG_GAME_FLOW);
 
 				array_splice($this->food, $i, 1);
 			}
@@ -343,6 +348,9 @@ class Ants {
 				$ant = $this->lookupAntById($this->foodTargets[$i][3]);
 				
 				if ($ant) {
+					
+					$this->logger->write("Food at " . $this->foodTargets[$i][0] . "," . $this->foodTargets[$i][1] . " being gathered by ant " . $ant->name . " is gone.  Resetting mission", AntLogger::LOG_GAME_FLOW);
+					
 					// give the default mission if no food, we'll reassign a better one later
 					$ant->mission = new Mission(array(
 						'debug' => DEBUG_LEVEL,
@@ -350,11 +358,8 @@ class Ants {
 					));
 				} else {
 					// maybe the ant died while looking for the food
-					$this->logger->write("Ant with id " . $this->foodTargets[$i][3] . ' has disappeard while looking for food', AntLogger::LOG_ERROR);
+					$this->logger->write("Ant with id " . $this->foodTargets[$i][3] . ' has disappeard while looking for food', AntLogger::LOG_GAME_FLOW | AntLogger::LOG_WARN);
 				}
-
-	$this->logger->write("Food at " . $this->foodTargets[$i][0] . "," . $this->foodTargets[$i][1] . " being gathered by and " . $ant->name . " is gone.", AntLogger::LOG_GAME_FLOW);
-
 
 				// remove it, it's a stale entry
 				array_splice($this->foodTargets, $i, 1);

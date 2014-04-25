@@ -70,21 +70,21 @@ class Ant {
 		switch ($name) {
 			case 'row':
 				$this->ppos = $this->pos;
-				$this->pos[0] = $value;
+				$this->pos[0] = (int)$value;
 				break;
 			case 'col':
 				$this->ppos = $this->pos;
-				$this->pos[1] = $value;
+				$this->pos[1] = (int)$value;
 				break;
 			case 'pos':
 				$this->ppos = $this->pos;
 				$this->pos =  $value;
 				break;
 			case 'prow':
-				$this->ppos[0] = $value;
+				$this->ppos[0] = (int)$value;
 				break;
 			case 'pcol':
-				$this->ppos[1] = $value;
+				$this->ppos[1] = (int)$value;
 				break;
 			default:
 				$this->$name = $value;
@@ -102,16 +102,16 @@ class Ant {
     public function __get($name) {
 		switch ($name) {
 			case 'row':
-				$retval = $this->pos[0];
+				$retval = (int)$this->pos[0];
 				break;
 			case 'col':
-				$retval = $this->pos[1];
+				$retval = (int)$this->pos[1];
 				break;
 			case 'prow':
-				$retval = $this->ppos[0];
+				$retval = (int)$this->ppos[0];
 				break;
 			case 'pcol':
-				$retval = $this->ppos[1];
+				$retval = (int)$this->ppos[1];
 				break;
 			default:
 				if (!isset($this->$name)) {

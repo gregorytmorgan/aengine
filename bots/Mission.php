@@ -232,28 +232,50 @@ class Mission {
 	 */
 	public function move (Ant $ant, Mission $mission, Ants $game) {
 
-		$nextPt = $this->getNextMove($ant, $mission, $game);
+		$nextMove = $this->getNextMove($ant, $mission, $game);
 
-		if (!$nextPt) {
-			$this->logger->write($ant->name . ' getNextMove() did not return a move.', AntLogger::LOG_MISSION);
-			return false;
+		if (!$nextMove || !isset($nextMove['status'])) {
+			$this->logger->write($ant->name . ' getNextMove() did not return successful  move.', AntLogger::LOG_MISSION);
+			return array(
+				'ant' => $ant,
+				'status' => Ants::TURN_FAIL,
+				'value' => false,
+				'move' => false
+			);
 		}
 
+		$nextPt = $nextMove['move'];
+		
 		// direction will be an empty array if pt0 == pt1
 		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
 
-		if ($nextPt && $direction) {
-			$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
+		if ($direction) {
 			$this->logger->write(sprintf("%s moved %s to %d,%d", $ant->name, $direction[0], $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
 			$game->issueOrder($ant->row, $ant->col, $direction[0]);
 			$ant->pos = array($nextPt[0], $nextPt[1]);
+			
+			// update the map tracking ant so the next ant doesn't move to the same location.  future: $game->antMap->set($nextPt[0], $nextPt[1], Ants::LAND) ...
+			$game->mapSet($ant->row, $ant->col, Ants::LAND);  // how about hives? Are we tracking hives on the main map or just treating them as land?
+			$game->mapSet($nextPt[0], $nextPt[1], Ants::ANTS);
+			
 			$stuck = 0;
-			return true;
+			
+			return array(
+				'ant' => $ant,
+				'status' => Ants::TURN_OK,
+				'value' => false,
+				'move' => array($nextPt[0], $nextPt[1])
+			);
 		}
 
 		$this->logger->write(sprintf("%s", $ant) . ' has no where to go', AntLogger::LOG_MISSION);
 
-		return false;
+		return array(
+			'ant' => $ant,
+			'status' => Ants::TURN_FAIL,
+			'value' => false,
+			'move' => false
+		);
 	} //move
 
 	/**
@@ -261,7 +283,7 @@ class Mission {
 	 *
 	 * @param Ant $ant
 	 * @param Ants $game
-	 * @return string|boolean
+	 * @return array Turn structure ['ant' => ant, 'status' => status, 'value' => data, 'move' => array(r,c) ]
 	 */
 	protected function getNextMove(Ant $ant, Mission $mission, Ants $game) {
 
@@ -275,7 +297,12 @@ class Mission {
 		for ($i = 0; $i < 4; $i++) {
 			$nextPt = $directions[$i];
 			if ($game->passable($nextPt[0], $nextPt[1])) {
-				return $directions[$i];
+				return array(
+					'ant' => $ant,
+					'status' => Ants::TURN_OK,
+					'value' => false,
+					'move' => $directions[$i]
+				);
 			}
 		}
 
@@ -290,7 +317,12 @@ class Mission {
 			$this->setState('end');
 		}
 
-		return false;
+		return array(
+			'ant' => $ant,
+			'status' => Ants::TURN_FAIL,
+			'value' => false,
+			'move' => array($nextPt[0], $nextPt[1])
+		);
 	}
 	
 	/**

@@ -109,30 +109,61 @@ $mission->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant
 	 *
 	 * @param Ant $ant
 	 * @param Ants $game
-	 * @return array|boolean Return the point for the next move
+	 * @return array Turn structure ['ant' => ant, 'status' => status, 'value' => data, 'move' => array(r,c) ]
 	 */
 	protected function getNextMove(Ant $ant, Mission $mission, Ants $game) {
 		
 		if (!$this->path) {
 			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-			return false;
+			
+			return parent::getNextMove($ant, $mission, $game);
+			
+//			return array(
+//				'ant' => $ant,
+//				'status' => Ants::TURN_FAIL,
+//				'value' => false,
+//				'move' => false
+//			);
 		}
 
 		$nextPt = array_shift($this->path);
 
 		if (!$nextPt) {
 			$this->logger->write(sprintf("%s", $this) . ' SHIFT FAILED?.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-			return false;
+			return array(
+				'ant' => $ant,
+				'status' => Ants::TURN_FAIL,
+				'value' => false,
+				'move' => false
+			);
 		}
 		
+		// use old game passable for now.  Future, use terrianMap?
 		$passable = $game->passable($nextPt[0], $nextPt[1]);
 		
+		if ($game->mapGet(array($nextPt[0], $nextPt[1])) === Ants::MY_ANT) {
+			// if it's not passable because one of my ants, defer
+			// $defer = ['ant' => ant, 'status' => status, 'value' => data, 'move' => array(r,c) ]
+			$defer = array(
+				'ant' => $ant,
+				'status' => Ants::TURN_DEFER,
+				'value' => null,
+				'move' => array($nextPt[0], $nextPt[1])
+			);
+			return $defer;
+		}
+
 		if ($passable) {
 			// theres probably a better place for this
 			if (($ant->firstTurn % $game->viewradius) === 0) {
 				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
 			}
-			return array($nextPt[0], $nextPt[1]);
+			return array(
+				'ant' => $ant,
+				'status' => Ants::TURN_OK,
+				'value' => false,
+				'move' => array($nextPt[0], $nextPt[1])
+			);
 		}
 
 		$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
@@ -154,7 +185,12 @@ $mission->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant
 			$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $this->stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
 		}			
 		
-		return false;
+		return array(
+			'ant' => $ant,
+			'status' => Ants::TURN_FAIL,
+			'value' => false,
+			'move' => array($nextPt[0], $nextPt[1])
+		);
 	}
 		
 		

@@ -274,7 +274,8 @@ class MissionPatrol extends Mission{
 			return false;
 		}
 
-		$passable = $game->terrainMap->passable($nextPt[0], $nextPt[1]);
+		// future: use terrainMap->passable ... what about ant collisions, need to chk antMap as well?
+		$passable = $game->passable($nextPt[0], $nextPt[1]);
 
 		if ($passable) {
 			return array($nextPt[0], $nextPt[1]);
