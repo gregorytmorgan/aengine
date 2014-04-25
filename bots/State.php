@@ -21,7 +21,7 @@ class State {
 
 	static $instance = 1;
 
-	protected $id;
+	public $id;
 
 	public $name;
 
@@ -96,11 +96,30 @@ $INIT_STATE = new State(array(
 	'actionName' => 'NoAction',
 	'events' => array(
 		array(
-			'test' => function ($ant, $data = array()) { return true; },
-			'next' => 'end'
+			'test' => function ($ant = false, $mission = false, $game = false, $args = false) { return true; },
+			'next' => 'move'
 		)
 	),
 	'debug' => AntLogger::LOG_NONE
+));
+
+$MOVE_STATE = new State(array(
+	'id' => 'move',
+	'name' => 'Moving',
+	'action' => array('Mission', 'move'),
+	'actionName' => 'Move next',
+	'events' => array (
+		array(
+			'test' => array(
+				function ($ant = false, $mission = false, $game = false, $args = false) {
+					//return !empty($arg['mission']->path);
+					return false;
+				},
+				array('additionalData' => 'Example data')
+			),
+			'next' => 'end'
+		)
+	)
 ));
 
 //$NOP_STATE = new State(array(
@@ -110,7 +129,7 @@ $INIT_STATE = new State(array(
 //	'actionName' => 'NoAction',
 //	'events' => array(
 //		array(
-//			'test' => function ($ant, $data = array()) { return false; },
+//			'test' => function ($ant = false, $mission = false, $game = false, $arg = false) { return false; },
 //			'next' => null
 //		)
 //	),
@@ -124,7 +143,7 @@ $END_STATE = new State(array(
 	'actionName' => 'NoAction',
 	'events' => array(
 		array(
-			'test' => function ($ant, $data = array()) { return false; },
+			'test' => function ($ant = false, $mission = false, $game = false, $args = false) { return false; },
 			'next' => null
 		)
 	),
@@ -138,7 +157,7 @@ $STUCK_STATE = new State(array(
 	'actionName' => 'NoAction',
 	'events' => array(
 		array(
-			'test' => function ($ant, $data = array()) { return false; },
+			'test' => function ($ant = false, $mission = false, $game = false, $args = false) { return false; },
 			'next' => null
 		)
 	),
@@ -152,7 +171,7 @@ $DEAD_STATE = new State(array(
 	'actionName' => 'NoAction',
 	'events' => array(
 		array(
-			'test' => function ($ant, $data = array()) { return false; },
+			'test' => function ($ant = false, $mission = false, $game = false, $args = false) { return false; },
 			'next' => null
 		)
 	),

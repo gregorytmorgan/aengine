@@ -1,0 +1,20 @@
+
+Netbeans Project Config
+===============================================================
+Index:				exec.php
+Arguments:			"./test_bot.sh 'php -f ../bots/MyBot.php'"
+Working Directory:	/home/gmorgan/dev/aengine/tools
+PHP Options:		-f
+
+
+State Engine / Missions
+===============================================================
+
+
+The base Mission class handles the actions and moves for a turn - in that order.
+
+The default mission contains Mission.getNextMove() which should return a row,column pair.  Override this method to improve movement logic.  The base getNextMove() simply tries to move N, E, S and then West.
+
+
+
+

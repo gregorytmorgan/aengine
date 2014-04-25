@@ -131,7 +131,7 @@ class Ant {
 	 * @return string
 	 */
     public function __toString (){
-		$str =  $this->name . ' ('.  $this->id . ")";
+		$str =  $this->name;
 		$str .= " Pos: " . $this->pos[0] . ', ' . $this->pos[1];
 		
 		if ($this->mission) {

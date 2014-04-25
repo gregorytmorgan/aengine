@@ -46,7 +46,7 @@ class MissionPatrol extends Mission{
 			'events' => array(
 				array(
 					'test' => array(
-						function ($ant, $data = array()) {
+						function ($ant = false, $mission = false, $game = false, $args = false) {
 							return !emtpy($arg[0]->path);
 						},
 						array($this)
@@ -65,7 +65,7 @@ class MissionPatrol extends Mission{
 			'events' => array (
 				array(
 					'test' => array(
-						function ($ant, $data = array(), $arg) { 
+						function ($ant = false, $mission = false, $game = false, $args = false) {
 							//return !$arg[0]->path;
 							return true;
 						},
@@ -96,7 +96,7 @@ class MissionPatrol extends Mission{
 			'events' => array (
 				array(
 					'test' => array(
-						function ($ant, $data = array(), $arg) { 
+						function ($ant = false, $mission = false, $game = false, $args = false) {
 							return true;
 						},
 						array($this)
@@ -132,7 +132,7 @@ class MissionPatrol extends Mission{
 	 * @param Ants $game is the Ants game data.
 	 * @return boolean
 	 */
-	function init (Ant $ant, Ants $game) {
+	function init (Ant $ant, Mission $mission, Ants $game) {
 
 //		$angle = rand(0, 1) * 6.28;
 //		$patrolStart = $game->terrainMap->gridWrap(array(abs(cos($angle) * ($ant->row - 1)), abs(sin($angle) * ($ant->col - 1))));
@@ -260,7 +260,7 @@ class MissionPatrol extends Mission{
 	 * @param Ants $game
 	 * @return array|boolean Return the point for the next move
 	 */
-	protected function getNextMove(Ant $ant, Ants $game) {
+	protected function getNextMove(Ant $ant, Mission $mission, Ants $game) {
 
 		if (!$this->path) {
 			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
@@ -308,7 +308,7 @@ class MissionPatrol extends Mission{
 	 * @param Ants $game
 	 * @return boolean
 	 */
-	public function patrol(Ant $ant, Ants $game) {
+	public function patrol(Ant $ant, Mission $mission, Ants $game) {
 		$this->logger->write($ant->name . ' - Doing the patrol action.', AntLogger::LOG_MISSION);
 
 		if (empty( $this->path)) {

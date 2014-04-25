@@ -62,25 +62,47 @@ class Ants {
     public $myHills = array();
     public $enemyHills = array();
     public $deadAnts = array();
-    public $food = array();
+
 	public $gameStartTime = 0;
 	public $terrainMap = null;
+
+	/**
+	 * Food NOT be gathered
+	 *
+	 * [row, col, lastKnownTurn]
+	 *
+	 * @var array
+	 */
+	public $food = array();
+	
+	/**
+	 * Food being gathered
+	 * 
+	 * [row, col, lastKnownTurn, antId]
+	 *
+	 * @var array
+	 */
+	public $foodTargets = array();
+
 	
     public $AIM = array(
         'n' => array(-1, 0),
         'e' => array(0, 1),
         's' => array(1, 0),
         'w' => array(0, -1) );
+
     public $RIGHT = array (
         'n' => 'e',
         'e' => 's',
         's' => 'w',
         'w' => 'n');
+
     public $LEFT = array (
         'n' => 'w',
         'e' => 'n',
         's' => 'e',
         'w' => 's');
+
     public $BEHIND = array (
         'n' => 's',
         's' => 'n',
@@ -106,7 +128,7 @@ class Ants {
 		$this->gameStartTime = (float)$sec + (float)$usec;
 		
 		$this->logger = new AntLogger(array(
-			'logLevel' =>  DEBUG_LEVEL  - AntLogger::LOG_MAPDUMP // - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
+			'logLevel' =>  DEBUG_LEVEL  // - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
 		));
 	}
 	
@@ -171,7 +193,7 @@ class Ants {
      */
     public function update($data) {
 		
-		$this->logger->write("<GREEN>Starting update processing for turn " . $this->turn . '.</GREEN>', AntLogger::LOG_GAME_FLOW);
+		$this->logger->write("\n<GREEN>Starting update processing for turn " . $this->turn . '.</GREEN>', AntLogger::LOG_GAME_FLOW);
 
 		$this->logger->write("Raw Input - turn " . $this->turn, AntLogger::LOG_INPUT);
 		$this->logger->write("----------------", AntLogger::LOG_INPUT);
@@ -186,24 +208,24 @@ class Ants {
         }
 
         foreach ($this->enemyAnts as $ant) {
-            list($row, $col) = $ant;
+            list($row, $col) = (is_array($ant)) ? $ant : $ant->pos;
             $this->mapSet($row, $col, Ants::LAND);
         }
         $this->enemyAnts = array();
 
-        foreach ($this->deadAnts as $ant) {
-            list($row, $col) = $ant->pos;
+        foreach ($this->deadAnts as $deadAnt) {
+            list($row, $col) = (is_array($deadAnt)) ? $deadAnt : $ant->pos;
             $this->mapSet($row, $col, Ants::LAND);
         }
         $this->deadAnts = array();
 
-        foreach ($this->food as $ant) {
-            list($row, $col) = $ant->pos;
-            $this->mapSet($row, $col, Ants::LAND);
-			$this->terrainMap->set(array($row, $col), Ants::LAND);
-        }
+//        foreach ($this->food as $ant) {
+//            list($row, $col) = $ant->pos;
+//            $this->mapSet($row, $col, Ants::LAND);
+//			$this->terrainMap->set(array($row, $col), Ants::LAND);
+//        }
 
-        $this->food = array();
+        //$this->food = array();
         $this->myHills = array();
         $this->enemyHills = array();
 
@@ -228,7 +250,7 @@ class Ants {
 						
 						if ($owner === 0) {
 							$myAntCount++; // for lost ant check;
-							$ant = $this->lookupAnt($row, $col);
+							$ant = $this->lookupAntByPosition($row, $col);
 							if ($ant) {
 								// ?
 							} else {
@@ -247,7 +269,21 @@ class Ants {
                     } elseif ($tokens[0] == 'f') {			// f = food, format: f row col
                         $this->mapSet($row, $col, Ants::FOOD);
 						$this->terrainMap->set(array($row, $col), Ants::LAND);
-                        $this->food []= array($row, $col);
+
+						$idx = $this->lookupFood(array($row, $col));
+
+						if ($idx !== false) {
+							// food = [row, col, lastKnowTurn]
+							$this->food[$idx][2] = $this->turn;
+						} else {
+							$idx = $this->lookupTargetedFood(array($row, $col));
+					
+							if ($idx === false) {
+								$this->food[] = array($row, $col, $this->turn);
+							} else {
+								$this->foodTargets[$idx][2] = $this->turn;
+							}
+						}
                     } elseif ($tokens[0] == 'w') {			// w = water, format: w row col
                         $this->mapSet($row, $col, Ants::WATER);
 						$this->terrainMap->set(array($row, $col), Ants::WATER);
@@ -274,10 +310,123 @@ class Ants {
             } // not empty line
         } // each line
 
-		$this->dumpMap(AntLogger::LOG_MAPDUMP);
-		$this->logger->write("Terrian Map:", AntLogger::LOG_MAPDUMP); 
-		$this->logger->write($this->terrainMap, AntLogger::LOG_MAPDUMP);
+		$this->logger->write("Reconciling tracked items ...", AntLogger::LOG_GAME_FLOW);
 
+		//
+		// Reconciliation - For item we're tracking, remove the ones no longer listed by the server.
+		// 
+		// Tracked items:
+		//		my ants
+		//		ememy ant (NOT YET)
+		//		food
+
+		// Reconcile food. For untargeted food that was not timestamped this turn,
+		// remove it from the list
+		for ($i = 0, $len = count($this->food); $i < $len; $i++) {
+			if ($this->food[$i][2] !== $this->turn) {
+
+	$this->logger->write("Food at " . $this->food[$i][0] . "," . $this->food[$i][1] . "is gone.", AntLogger::LOG_GAME_FLOW);
+
+				array_splice($this->food, $i, 1);
+			}
+			$i--;
+			$len--;
+		}
+
+		// For targeted food, as above but pull the ant off the assignment
+		for ($i = 0, $len = count($this->foodTargets); $i < $len; $i++) {
+			if ($this->foodTargets[$i][2] !== $this->turn) {
+
+				$this->logger->write("Food at " . $this->foodTargets[$i][0] . "," . $this->foodTargets[$i][1] . " being gathered by ant id " . $this->foodTargets[$i][3] . " is stale. LastKnownTurn: " . 	$this->foodTargets[$i][2], AntLogger::LOG_GAME_FLOW);
+
+				// foodTargets = [row, col, lastKnownTurn, antId]
+				$ant = $this->lookupAntById($this->foodTargets[$i][3]);
+				
+				if ($ant) {
+					// give the default mission if no food, we'll reassign a better one later
+					$ant->mission = new Mission(array(
+						'debug' => DEBUG_LEVEL,
+						'game' => $this,
+					));
+				} else {
+					// maybe the ant died while looking for the food
+					$this->logger->write("Ant with id " . $this->foodTargets[$i][3] . ' has disappeard while looking for food', AntLogger::LOG_ERROR);
+				}
+
+	$this->logger->write("Food at " . $this->foodTargets[$i][0] . "," . $this->foodTargets[$i][1] . " being gathered by and " . $ant->name . " is gone.", AntLogger::LOG_GAME_FLOW);
+
+
+				// remove it, it's a stale entry
+				array_splice($this->foodTargets, $i, 1);
+				$i--;
+				$len--;
+			} // bad food
+		}
+
+		$this->logger->write("Reconciling tracked items ... done.", AntLogger::LOG_GAME_FLOW);
+
+		$this->logger->write("Mission planning started ...", AntLogger::LOG_GAME_FLOW);
+
+		//
+		// Mission Planning
+		//
+		// For any ant with a default mission (or none) then reassign to gather food
+		//
+		$needsMission = array();
+		foreach ($this->myAnts as $antIdx => $ant) {
+			if (get_class($ant->mission) === 'Mission') {
+
+
+//$this->logger->write(var_export($ant->mission, true));	die();
+
+$this->logger->write($ant->name . " has a mission of " . get_class($ant->mission), AntLogger::LOG_GAME_FLOW);
+
+
+				//$needsMission[] = $this->myAnts[$antIdx];
+				$needsMission[] = $ant;
+			}
+		}
+
+		$this->logger->write("Remissioning " . count($needsMission) . " ants", AntLogger::LOG_GAME_FLOW);
+
+		$antFoodMissionPairs = $this->getBestFoodTargets($needsMission);
+
+//$this->logger->write('Ant - food pairs:');
+//$this->logger->write(var_export($antFoodMissionPairs, true));
+
+		foreach ($antFoodMissionPairs as $pair) {
+
+			$ant = $this->lookupAntById($pair['ant']->id);
+
+			$ant->mission = new MissionGoToPoint(array(
+				'debug' => DEBUG_LEVEL,
+				'game' => $this,
+				'startPt' => $ant->pos,
+				'goalPt' => $pair['food'],
+				'terrainMap' => $this->terrainMap
+			));
+
+			$this->foodTargets[] = array($pair['food'][0], $pair['food'][1], $this->turn, $ant->id);
+
+			$idx = $this->lookupFood($pair['food']);
+			if ($idx !== false) {
+				array_splice($this->food, $idx, 1);
+			}
+		}
+
+		$this->logger->write("Mission planning ... done.", AntLogger::LOG_GAME_FLOW);
+
+		$this->dumpMap(AntLogger::LOG_MAPDUMP);
+		$this->logger->write("Terrian Map:", AntLogger::LOG_MAPDUMP);
+		$this->logger->write($this->terrainMap, AntLogger::LOG_MAPDUMP);
+		$this->logger->write("Food:\n Available food: " . count($this->food), AntLogger::LOG_GAME_FLOW);
+
+		$str = " Targeted food: ";
+		foreach($this->foodTargets as $ft) {
+			$str .= '(' . implode(',', $ft) . ') ';
+		}
+		$this->logger->write($str , AntLogger::LOG_GAME_FLOW);
+		
 		if ($myAntCount !== count($this->myAnts)) {
 			$this->logger->write("Ant count error.  Server says:" . $myAntCount . " Game count:" . count($this->myAnts), AntLogger::LOG_ERROR);
 			$this->dumpAnts(AntLogger::LOG_ERROR);
@@ -436,22 +585,35 @@ class Ants {
 					break;				
 			};
 
-			$farpoint = round(sqrt($this->rows*$this->rows + $this->cols*$this->cols));
-			
-			$mission = new MissionPatrol(array(
-				'debug' => DEBUG_LEVEL,
-				'game' => $game,
-				'startPt' => array($row, $col),
-				'centerPt' => array($row, $col), // the hive
-				'terrainMap' => $this->terrainMap,
-				'firstTurn' => $this->turn,
-				//'radius' => rand($this->attackradius, $farpoint)
-				'radius' => 10
-			));
-
-			if (!$mission) {
-				throw new Exception('NO MISSSION');
-			}
+//			$pt = $this->getFoodTarget(array($row, $col));
+//
+//			if ($pt) {
+//				$pt = $this->terrainMap->getPassablePoint(array($row, $col), 4);
+//				// last ditch effor to get the ant off the hive
+//				if (!$pt) {
+//					$this->logger->write("Failed to get a passible point", AntLogger::LOG_GAME_FLOW | AntLogger::LOG_ANT);
+//					for ($i = 0; $i < 4; $i++) {
+//						if ( $this->passible($this->getDirection($this->directions[$i]))) {
+//							$pt = $this->directions[$i];
+//						}
+//					}
+//				}
+//			}
+//
+//			if ($pt) {
+//				$mission = new MissionGoToPoint(array(
+//					'debug' => DEBUG_LEVEL,
+//					'game' => $game,
+//					'startPt' => array($row, $col),
+//					'goalPt' => array($row, $col), // the hive
+//					'terrainMap' => $this->terrainMap
+//				));
+//			} else {
+				$mission = new Mission(array(
+					'debug' => DEBUG_LEVEL,
+					'game' => $game,
+				));				
+//			}
 
 			$ant = new Ant(array(
 			'row' => $row,
@@ -480,27 +642,21 @@ class Ants {
 		$this->nMyAnts++;
 	}
 
-
-
 	/**
-	 * Lookup one of my ants based on it's position.
-	 * 
-	 * @param integer|array $arg1
-	 * @param integer $arg2
+	 * Lookup one of my ants based on it's id.
+	 *
+	 * @param integer
 	 * @return object|false Return an Ant object on success, false otherwise;
 	 */
-	public function lookupAnt($arg1, $arg2 = null) {
-		if (is_array($arg1)) {
-			$row = (isset($arg1['row']) ? $arg1['row'] : $arg1[0]);
-			$col = (isset($arg1['col']) ? $arg1['col'] : $arg1[0]);
-		} else {
-			$row = $arg1;
-			$col = $arg2;
+	public function lookupAntById($id) {
+
+		if (empty($this->myAnts)) {
+			return false;
 		}
-		
-		for ($i = 0; $i < $this->nMyAnts; $i++) {
+
+		for ($i = 0, $len = count($this->myAnts); $i < $len; $i++) {
 			$ant = $this->myAnts[$i];
-			if ($ant->row === $row && $ant->col == $col) {
+			if ($ant->id === $id) {
 				return $ant;
 			}
 		}
@@ -509,26 +665,184 @@ class Ants {
 	}
 
 	/**
+	 * Find a entry in the available food array by location.
+	 *
+	 * @param array $pt
+	 * @return returns the index into the $this->food array on success, false otherwise.
+	 */
+	public function lookupFood ($pt) {
+
+		if (empty($this->food)) {
+			return false;
+		}		
+
+		for ($i = 0, $len = count($this->food); $i < $len; $i++) {
+			$food = $this->food[$i];
+			if ($food[0] === $pt[0] && $food[1] === $pt[1]) {
+				return $i;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Find a entry in the targeted food array by location.
+	 *
+	 * @param array $pt
+	 * @return returns the index into the $this->food array on success, false otherwise.
+	 */
+	public function lookupTargetedFood ($pt) {
+
+		if (empty($this->foodTargets)) {
+			return false;
+		}
+
+		for ($i = 0, $len = count($this->foodTargets); $i < $len; $i++) {
+			$food = $this->foodTargets[$i];
+			if ($food[0] === $pt[0] && $food[1] === $pt[1]) {
+				return $i;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * getFoodTarget
+	 * 
+	 * @param type $pt
+	 * @return array Return a food point
+	 */
+	public function getFoodTarget($pt) {
+
+		// need to sort and get the best food, or better yet have a mission
+		// assign phase after process game data, then assign bests
+	
+		return array_pop($this->food);
+	}
+	
+	/**
+	 * getFoodTarget - simple ant/food matching
+	 * 
+	 * @param type $pt
+	 * @return array Return a food point
+	 */
+	public function getBestFoodTargets($ants) {
+
+		//throw new Exception('Not implemented');
+
+$this->logger->write('getBestFoodTargets - entry.  Ant count:' . count($ants));
+
+		$result = array();
+
+		$antFood = array();
+
+		foreach ($ants as $ant) {
+			$af = array(
+				'ant' => $ant,
+				'food' => new PQueue() // extended to prioritize on lowest
+			);
+
+			// note: food = [row, colum, lastKnowTurn]
+			foreach ($this->food as $food) {
+				$af['food']->insert($food, abs($ant->row - $food[0]) + abs($ant->col - $food[1]));
+			}
+
+			if ($af['food']->count()) {
+				$antFood[] = $af;
+			}
+		}
+
+$this->logger->write('Computed ant - food values.');
+
+		foreach ($antFood as $af) {
+
+$this->logger->write(var_export($af['ant']->pos, true));
+
+$this->logger->write('finding best food target for ant ' . $af['ant']->name);
+
+			do {
+				$PQfood = $af['food'];
+				$food = $PQfood->extract();
+				$idx = $this->lookupFood(array($food[0], $food[1]));
+				if ($idx !== false) {
+					$result[] = array('ant' => $ant, 'food' => $food);
+					array_splice($this->food, $idx, 1);
+					break;
+				}
+			} while (!empty($this->food) && !empty($antFood));
+
+		}
+
+		return $result;
+	}	
+	
+
+	/**
+	 * Lookup one of my ants based on it's position.
+	 *
+	 * Takes postion as a point or row,col.
+	 *
+	 * @param integer|array $arg1 Point or row
+	 * @param integer $arg2 Column
+	 * @return object|false Return an Ant object on success, false otherwise;
+	 */
+	public function lookupAntByPosition($arg1, $arg2 = null) {
+
+//$this->logger->write(sprintf('lookupAntByPosition entry - %d, %d', $arg1, ((is_null($arg2)) ? 'null': $arg2)));
+
+		if (empty($this->myAnts)) {
+			return false;
+		}
+
+		if (is_array($arg1)) {
+			$row = (isset($arg1['row']) ? (int)$arg1['row'] : (int)$arg1[0]);
+			$col = (isset($arg1['col']) ? (int)$arg1['col'] : (int)$arg1[1]);
+		} else {
+			$row = (int)$arg1;
+			$col = (int)$arg2;
+		}
+		
+		for ($i = 0, $len = count($this->myAnts); $i < $len; $i++) {
+			$ant = $this->myAnts[$i];
+			if ($ant->row === $row && $ant->col === $col) {
+				return $ant;
+			}
+		}
+
+//$this->logger->write(sprintf('lookupAntByPosition failed - (%d,%d) => (%d,%d)', $arg1, ((is_null($arg2)) ? 'null': $arg2), $row, $col));
+
+		return false;
+	}
+
+	/**
 	 * Move an ant to the deadAnts list. Set state to dead if frendly.
 	 *
 	 * @param object|array $ant Takes an Ant object or simple point identifier.
-	 * @return void
+	 * @return boolean Return true on success, false otherwise.
 	 */
 	public function killAnt($ant) {
 
-\CakeLog::write('debug', 'killAnt - entry ' . $ant->row. ',' . $ant->col);
+//$this->logger->write('killAnt - entry ' . $ant->row. ',' . $ant->col);
 
-		for ($i = 0; $i < $this->nMyAnts; $i++) {
+		if (empty($this->myAnts)) {
+			return false;
+		}
+
+		for ($i = 0, $len = count($this->myAnts); $i < $len; $i++) {
 			$ant = $this->myAnts[$i];
 			if ($ant->row === $row && $ant->col == $col) {
-
-\CakeLog::write('debug', 'killAnt - found ' . $ant->row. ',' . $ant->col);
-
 				//$ant->mission->setState('dead');
-				array_splice($this->nMyAnts, $i, 1);
+				array_splice($this->myAnts, $i, 1);
+				$this->deadAnts[] = $ant;
+				return true;
 			}
 		}
-		$this->deadAnts[] = $ant;
+
+//$this->logger->write('killAnt - Ant ' . $ant->row. ',' . $ant->col . ' NOT found.');
+
+		return false;
 	}
 
 
@@ -668,8 +982,10 @@ class Ants {
     public function dumpTurn($grp = AntLogger::LOG_ALL) {
 		$this->logger->write("\nTurn " . $this->turn . " Initial State Summary", $grp);
 		$this->logger->write('----------------', $grp);
+		$this->logger->write("Food:");
+		$this->logger->write(" Available food: " . count($this->food));
+		$this->logger->write(" Targeted food: " . count($this->foodTargets));
 		$this->dumpAnts($grp);
-		$this->logger->write("\n");
 	}
 
 	/**

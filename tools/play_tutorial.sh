@@ -1,0 +1,1 @@
+./playgame.py --engine_seed 42 --player_seed 42 --food none --end_wait=0.25 --turntime=1000 --viewradius 55 --verbose --log_dir game_logs --turns 10 --scenario --food none --map_file=maps/example/tutorial1.map "$1" "python sample_bots/python/HunterBot.py" -e --strict --capture_errors

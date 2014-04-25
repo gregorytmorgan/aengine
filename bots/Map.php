@@ -162,6 +162,51 @@ if ($wPt[0] < 0 || $wPt[0] >= $this->rows || $wPt[1] < 0 || $wPt[1] >= $this->co
 	}
 
 	/**
+	 * Get a passable point
+	 *
+	 * @param array $pt Point
+	 * @param integer $radius Radius
+	 * @return array Point
+	 */
+    public function getPassablePoint($pt, $radius) {
+		$attempts = 0;
+		do {
+			$hr = round($radius/2);
+			$r = $pt[0] + rand(-$hr, $hr);
+			$c = $pt[1] + rand(-$hr, $hr);
+
+			if ($this->passable($r, $c)) {
+				return array($r, $c);
+			}
+		} while ($attempts++ < 100);
+
+		return false;
+	}
+
+	/**
+	 * printPath
+	 *
+	 * A path is just an array of points (arrays).
+	 *
+	 * @param array $path
+	 * @return string
+	 */
+	public function printPath($path) {
+		$str = '';
+		if ($path) {
+			foreach ($path as $p) {
+				$str .= '(' . implode(',', $p) . ')';
+			}
+		}
+		return $str;
+	}
+
+
+
+
+
+
+	/**
 	 * updateView
 	 *
 	 * @param array $pt
@@ -394,10 +439,13 @@ $it = 0;
 			$current = $openset->extract();
 	
 //$this->logger->write('Current: ' . $current->pt[0] . ',' . $current->pt[1]);
-			
-			if ($current->pt === $g->pt) {
-				$this->logger->write(sprintf("Found path (%d,%d) to (%d,%d) ", $s->pt[0], $s->pt[1], $g->pt[0], $g->pt[1]), AntLogger::LOG_MAP | AntLogger::LOG_WARN);
-				return $this->reconstruct_path($current);
+//$this->logger->write('g: ' . $g->pt[0] . ',' . $g->pt[1]);
+//$this->logger->write('cmp current = g: ' . (int)($current->pt === $g->pt));
+
+			if ($current->pt[0] === $g->pt[0] && $current->pt[1] === $g->pt[1]) {
+				$path = $this->reconstruct_path($current);
+				$this->logger->write(sprintf("Found path (%d,%d) to (%d,%d) distance: %d ", $s->pt[0], $s->pt[1], $g->pt[0], $g->pt[1], count($path)), AntLogger::LOG_MAP | AntLogger::LOG_WARN);
+				return $path;
 			}
 
 			$neighbor_nodes = $this->getNeighbors($current);

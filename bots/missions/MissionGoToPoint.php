@@ -30,7 +30,8 @@ class MissionGoToPoint extends Mission {
 		}
 
 		global $END_STATE;
-
+		global $STUCK_STATE;
+		
 		$init_state = new State(array(
 			'id' => 'init',
 			'name' => 'Initialized',
@@ -38,7 +39,7 @@ class MissionGoToPoint extends Mission {
 			'actionName' => 'Initialize Mission',
 			'events' => array(
 				array(
-					'test' => function ($ant, $data = array()) { return true; },
+					'test' => function ($ant = false, $mission = false, $game = false, $args = false) { return true; },
 					'next' => 'moving'
 				)
 			),
@@ -53,9 +54,9 @@ class MissionGoToPoint extends Mission {
 			'events' => array (
 				array(
 					'test' => array(
-						function ($ant, $data = array(), $arg) {
-$arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant->row, $ant->col, $arg[0]->goalPt[0], $arg[0]->goalPt[1]));
-							return $arg[0]->goalPt === $ant->pos; },
+						function ($ant = false, $mission = false, $game = false, $args = false) {
+$mission->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant->row, $ant->col, $mission->goalPt[0], $mission->goalPt[1]));
+							return $mission->goalPt === $ant->pos; },
 						array($this)
 					),
 					'next' => 'end'
@@ -86,7 +87,7 @@ $arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant-
 	 * @param Ants $game is the Ants game data.
 	 * @return boolean
 	 */
-	function init ($ant, Ants $game) {
+	function init (Ant $ant, Mission $mission, Ants $game) {
 
 //$this->logger->write(sprintf("Mission init 1 %d,%d  %d,%d-------------------------------------------",$ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]));
 
@@ -110,7 +111,7 @@ $arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant-
 	 * @param Ants $game
 	 * @return array|boolean Return the point for the next move
 	 */
-	protected function getNextMove(Ant $ant, Ants $game) {	
+	protected function getNextMove(Ant $ant, Mission $mission, Ants $game) {
 		
 		if (!$this->path) {
 			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
@@ -124,15 +125,17 @@ $arg[0]->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant-
 			return false;
 		}
 		
-		array_unshift($this->path, $nextPt);
-		
-		$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
-
 		$passable = $game->passable($nextPt[0], $nextPt[1]);
 		
 		if ($passable) {
+			// theres probably a better place for this
+			if (($ant->firstTurn % $game->viewradius) === 0) {
+				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
+			}
 			return array($nextPt[0], $nextPt[1]);
 		}
+
+		$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
 
 		// for some reason the path is blocked - another ant?, put the point
 		// back on the path and wait a turn.  After that?  Recalc?  Solution
