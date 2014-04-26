@@ -250,8 +250,7 @@ class Ants {
                     if ($tokens[0] == 'a') {				// a = live ant, format: w row col owner
                         $owner = (int)$tokens[3];
 						
-						// put the new ant on the game map
-                        $this->mapSet($row, $col, mb_substr(self::Alpha, $owner, 1));
+						$this->mapSet($row, $col, $owner);
 						
 						if ($owner === 0) {
 							$myAntCount++; // for lost ant check;
@@ -381,13 +380,8 @@ class Ants {
 		foreach ($this->myAnts as $antIdx => $ant) {
 			if (get_class($ant->mission) === 'Mission') {
 
+//$this->logger->write($ant->name . " has a mission of " . get_class($ant->mission), AntLogger::LOG_GAME_FLOW);
 
-//$this->logger->write(var_export($ant->mission, true));	die();
-
-$this->logger->write($ant->name . " has a mission of " . get_class($ant->mission), AntLogger::LOG_GAME_FLOW);
-
-
-				//$needsMission[] = $this->myAnts[$antIdx];
 				$needsMission[] = $ant;
 			}
 		}
@@ -422,15 +416,15 @@ $this->logger->write($ant->name . " has a mission of " . get_class($ant->mission
 		$this->logger->write("Mission planning ... done.", AntLogger::LOG_GAME_FLOW);
 
 		$this->dumpMap(AntLogger::LOG_MAPDUMP);
-		$this->logger->write("Terrian Map:", AntLogger::LOG_MAPDUMP);
-		$this->logger->write($this->terrainMap, AntLogger::LOG_MAPDUMP);
+		//$this->logger->write("Terrian Map:", AntLogger::LOG_MAPDUMP);
+		//$this->logger->write($this->terrainMap, AntLogger::LOG_MAPDUMP);
 		$this->logger->write("Food:\n Available food: " . count($this->food), AntLogger::LOG_GAME_FLOW);
 
-		$str = " Targeted food: ";
+		$str = "";
 		foreach($this->foodTargets as $ft) {
 			$str .= '(' . implode(',', $ft) . ') ';
 		}
-		$this->logger->write($str , AntLogger::LOG_GAME_FLOW);
+		$this->logger->write(" Targeted food: " . (($str) ? $str : '0'), AntLogger::LOG_GAME_FLOW);
 		
 		if ($myAntCount !== count($this->myAnts)) {
 			$this->logger->write("Ant count error.  Server says:" . $myAntCount . " Game count:" . count($this->myAnts), AntLogger::LOG_ERROR);
@@ -449,11 +443,13 @@ $this->logger->write($ant->name . " has a mission of " . get_class($ant->mission
 	 */
     public function passable($row, $col) {
 		
-		$retval = $this->mapGet($row, $col);
+		$mapVal = $this->mapGet($row, $col);
 		
-//$this->logger->write(sprintf("Ants.passable(%d,%d) = %d", $row, $col, $retval));
+		$retval = ($mapVal > Ants::WATER) && ($mapVal !== Ants::MY_ANT);
 		
-        return $retval > Ants::WATER;
+$this->logger->write(sprintf("Ants.passable(%d,%d) = %d, result:%d", $row, $col, $mapVal, $retval ));
+		
+        return $retval;
     }
 
 	/**
@@ -914,17 +910,29 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 						$char = '?';
 						break;
 					default:
+						
+fix me ------------------------------						
+						
+					if (is_numeric($this->map[$i][$j])) {
 						$hiveOwner = $this->isHive($i, $j);
 						if ($hiveOwner === false) {
 							$char = $this->map[$i][$j];
 						} else {
+							$char = mb_substr(self::Alpha, $owner, 1);
 							$char = strtoupper($this->map[$i][$j]);
-						}
+						}							
+					} else {
+						$this->logger->write('DOES THIS OCCUR ????????????????????????????????????????????????????????????');
+						$char = strtoupper($this->map[$i][$j]);
+					}
 				}
+				
 				if (strlen((string)$char) < 2) {
 					$char .= ' ';
 				}
 				$this->logger->write($char, $grp, array('noEndline' => true));
+				
+				
 			}
 			$this->logger->write('', $grp);
 		}
@@ -987,9 +995,9 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
     public function dumpTurn($grp = AntLogger::LOG_ALL) {
 		$this->logger->write("\nTurn " . $this->turn . " Initial State Summary", $grp);
 		$this->logger->write('----------------', $grp);
-		$this->logger->write("Food:");
-		$this->logger->write(" Available food: " . count($this->food));
-		$this->logger->write(" Targeted food: " . count($this->foodTargets));
+		$this->logger->write("Food:", $grp);
+		$this->logger->write(" Available food: " . count($this->food), $grp);
+		$this->logger->write(" Targeted food: " . count($this->foodTargets), $grp);
 		$this->dumpAnts($grp);
 	}
 

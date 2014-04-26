@@ -24,12 +24,15 @@ class BaseBot {
 		foreach ($game->myAnts as $i => $ant) {
 
 			if ($game->myAnts[$i]->mission) {
+				
 				$antTurnStart = $game->getElapsedTime();
 
 				// result = ['ant' => ant, 'status' => status, 'value' => data, 'move' => array(r,c) ]
 				$result = $game->myAnts[$i]->mission->doTurn($game->myAnts[$i], $game);		
 
 				if ($result['status'] === Ants::TURN_DEFER) {
+					
+					$game->logger->write(sprintf('Deferring %s (%d,%d)',  $ant->name, $result['move'][0], $result['move'][1]), AntLogger::LOG_GAME_FLOW);
 					//$result['ant'] = $game->myAnts[$i];
 					$deferredTurns[] = $result;
 				}
@@ -45,13 +48,15 @@ class BaseBot {
 		// handle deferred turns
 		//
 		
+		$game->logger->write('Starting deferred turn (' . count($deferredTurns) . ') resolution.', AntLogger::LOG_GAME_FLOW);
+		
 		// resolve follow - reversing will fix 
 		while ($dturn = array_pop($deferredTurns)) {
 			$ant = $dturn['ant'];
 			// result = [ 'status' => status, 'value' => data, 'move' => array(r,c) ]
 			$result = $ant->mission->doTurn($ant, $game);		
 
-			if ($turnResult['status'] === Ants::TURN_DEFER) {
+			if ($result['status'] === Ants::TURN_DEFER) {
 				$deferredTurns[] = $result;
 				continue;
 			}
@@ -88,7 +93,7 @@ class BaseBot {
 			array_splice($deferredTurns, $deferredTurns[$dturnIdx], 1);
 		} // foreach outer
 
-		$game->logger->write('Unable to resolve ' . count($deferredTurns) . ' deferred turns.', AntLogger::LOG_GAME_FLOW);
+		$game->logger->write(count($deferredTurns) . ' Unresolved deferred turns.', AntLogger::LOG_GAME_FLOW);
 		
 		$game->logger->write('doTurns complete. Total elaspsed turn time:' . number_format($game->getElapsedTime() - $doTurnsStart, 2) . 'ms', AntLogger::LOG_GAME_FLOW);
     } // doTurn

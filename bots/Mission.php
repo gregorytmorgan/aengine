@@ -233,14 +233,26 @@ class Mission {
 	public function move (Ant $ant, Mission $mission, Ants $game) {
 
 		$nextMove = $this->getNextMove($ant, $mission, $game);
-
-		if (!$nextMove || !isset($nextMove['status'])) {
-			$this->logger->write($ant->name . ' getNextMove() did not return successful  move.', AntLogger::LOG_MISSION);
+		
+		if (!$nextMove || !isset($nextMove['status']) || $nextMove['status'] === Ants::TURN_FAIL) {
+			
+			$this->logger->write($ant->name . ' getNextMove() did not return successful move.', AntLogger::LOG_MISSION);			
+			
 			return array(
 				'ant' => $ant,
 				'status' => Ants::TURN_FAIL,
 				'value' => false,
 				'move' => false
+			);
+		}
+		
+		if ($nextMove['status'] === Ants::TURN_DEFER) {
+			$this->logger->write($ant->name . ' getNextMove() return a deferred move.', AntLogger::LOG_MISSION);
+			return array(
+				'ant' => $ant,
+				'status' => Ants::TURN_DEFER,
+				'value' => false,
+				'move' => array($nextMove['move'][0], $nextMove['move'][1])
 			);
 		}
 
@@ -301,7 +313,7 @@ class Mission {
 					'ant' => $ant,
 					'status' => Ants::TURN_OK,
 					'value' => false,
-					'move' => $directions[$i]
+					'move' => array($nextPt[0], $nextPt[1])
 				);
 			}
 		}
@@ -310,10 +322,10 @@ class Mission {
 
 		$this->stuck++;
 
-		$this->logger->write(sprintf("%s Path (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+		$this->logger->write(sprintf("%s move to (%d, %d) blocked.", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
 
 		if ($this->stuck > $this->stuckThreshold) {
-			$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d.", $ant, $nextPt[0], $nextPt[1], $this->stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+			$this->logger->write(sprintf("%s  is stuck on path point (%d, %d). Count:%d Ending mission.", $ant, $nextPt[0], $nextPt[1], $this->stuck), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
 			$this->setState('end');
 		}
 
@@ -321,7 +333,7 @@ class Mission {
 			'ant' => $ant,
 			'status' => Ants::TURN_FAIL,
 			'value' => false,
-			'move' => array($nextPt[0], $nextPt[1])
+			'move' => false
 		);
 	}
 	

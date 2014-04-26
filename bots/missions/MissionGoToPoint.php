@@ -113,17 +113,10 @@ $mission->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant
 	 */
 	protected function getNextMove(Ant $ant, Mission $mission, Ants $game) {
 		
-		if (!$this->path) {
-			$this->logger->write(sprintf("%s", $this) . ' Empty path.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
+		if (!$this->path || empty($this->path)) {
+			$this->logger->write(sprintf("%s", $this) . ' Empty path. Using parent move call.', AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
 			
 			return parent::getNextMove($ant, $mission, $game);
-			
-//			return array(
-//				'ant' => $ant,
-//				'status' => Ants::TURN_FAIL,
-//				'value' => false,
-//				'move' => false
-//			);
 		}
 
 		$nextPt = array_shift($this->path);
@@ -139,25 +132,40 @@ $mission->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant
 		}
 		
 		// use old game passable for now.  Future, use terrianMap?
-		$passable = $game->passable($nextPt[0], $nextPt[1]);
+		$passable = $game->passable($nextPt[0], $nextPt[1])     ;
 		
-		if ($game->mapGet(array($nextPt[0], $nextPt[1])) === Ants::MY_ANT) {
+		
+		
+		
+		
+$this->logger->write("PASS --------------- : " . (int)$passable);
+		
+		
+		
+		
+		
+		
+		if (!$passable && $game->mapGet(array($nextPt[0], $nextPt[1])) === Ants::MY_ANT) {
+			
+			$this->logger->write(sprintf("Deferring %s more to point (%d, %d).", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+			
 			// if it's not passable because one of my ants, defer
 			// $defer = ['ant' => ant, 'status' => status, 'value' => data, 'move' => array(r,c) ]
-			$defer = array(
+			return array(
 				'ant' => $ant,
 				'status' => Ants::TURN_DEFER,
 				'value' => null,
 				'move' => array($nextPt[0], $nextPt[1])
 			);
-			return $defer;
 		}
 
 		if ($passable) {
+			
 			// theres probably a better place for this
 			if (($ant->firstTurn % $game->viewradius) === 0) {
 				$game->terrainMap->updateView(array($nextPt[0], $nextPt[1]), Ants::LAND);
 			}
+			
 			return array(
 				'ant' => $ant,
 				'status' => Ants::TURN_OK,
