@@ -885,9 +885,20 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 	 * @param Ant $bot
 	 */
     public function dumpMap($grp = AntLogger::LOG_ALL) {
-		for ($i = 0, $ilen = count($this->map); $i < $ilen; $i++) {
-			$this->logger->write('', $grp, array('noEndline' => true));
-			for ($j = 0, $jlen = count($this->map[$i]); $j < $jlen; $j++) {
+		for ($i = -1, $ilen = count($this->map); $i < $ilen; $i++) {
+			if ($i === -1) {
+				$this->logger->write("  ", $grp, array('noEndline' => true));
+				for ($j = 0, $jlen = count($this->map[0]); $j < $jlen; $j++) {
+					$this->logger->write(sprintf("%s", (strlen($j) < 2) ? ($j . ' ') : ($j . '')), $grp, array('noEndline' => true));
+				}
+				$this->logger->write('', $grp);
+				continue;
+			}
+			for ($j = -1, $jlen = count($this->map[$i]); $j < $jlen; $j++) {
+				if ($j === -1) {
+					$this->logger->write(sprintf("%s", (strlen($i) < 2) ? ($i . ' ') : ($i . '')), $grp, array('noEndline' => true));
+					continue;
+				}
 				switch ($this->map[$i][$j]) {
 					case Ants::DEAD:
 						$char = '!';
@@ -910,30 +921,26 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 						$char = '?';
 						break;
 					default:
-						
-fix me ------------------------------						
-						
-					if (is_numeric($this->map[$i][$j])) {
-						$hiveOwner = $this->isHive($i, $j);
-						if ($hiveOwner === false) {
-							$char = $this->map[$i][$j];
+						$char = $this->map[$i][$j];
+						if (is_numeric($char)) {
+							if ($this->isHive($i, $j)) {
+								$char = strtoupper(mb_substr(self::Alpha, (int)$char, 1));
+							} else {
+								$char = mb_substr(self::Alpha, (int)$char, 1);
+							}
 						} else {
-							$char = mb_substr(self::Alpha, $owner, 1);
-							$char = strtoupper($this->map[$i][$j]);
-						}							
-					} else {
-						$this->logger->write('DOES THIS OCCUR ????????????????????????????????????????????????????????????');
-						$char = strtoupper($this->map[$i][$j]);
-					}
+							$this->logger->write('DOES THIS OCCUR ????????????????????????????????????????????????????????????');
+							$char = $this->map[$i][$j];
+						}
 				}
 				
 				if (strlen((string)$char) < 2) {
-					$char .= ' ';
+					$char = ' ' . $char;
 				}
 				$this->logger->write($char, $grp, array('noEndline' => true));
-				
-				
-			}
+
+			} // for j
+			
 			$this->logger->write('', $grp);
 		}
 		$this->logger->write('', $grp, array('noEndline' => false));
