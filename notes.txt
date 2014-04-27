@@ -11,11 +11,90 @@ PHP Options:		-f
 State Engine / Missions
 ===============================================================
 
-
 The base Mission class handles the actions and moves for a turn - in that order.
 
 The default mission contains Mission.getNextMove() which should return a row,column pair.  Override this method to improve movement logic.  The base getNextMove() simply tries to move N, E, S and then West.
 
 
 
+playgame options
+===============================================================
 
+Usage: playgame.py [options] map bot1 bot2
+
+You must specify a map file.
+
+Options:
+  -h, --help            show this help message and exit
+  -m MAP, --map_file=MAP
+                        Name of the map file
+  -t TURNS, --turns=TURNS
+                        Number of turns in the game
+  --serial              Run bots in serial, instead of parallel.
+  --turntime=TURNTIME   Amount of time to give each bot, in milliseconds
+  --loadtime=LOADTIME   Amount of time to give for load, in milliseconds
+  -r ROUNDS, --rounds=ROUNDS
+                        Number of rounds to play
+  --player_seed=PLAYER_SEED
+                        Player seed for the random number generator
+  --engine_seed=ENGINE_SEED
+                        Engine seed for the random number generator
+  --strict              Strict mode enforces valid moves for bots
+  --capture_errors      Capture errors and stderr in game result
+  --end_wait=END_WAIT   Seconds to wait at end for bots to process end
+  --secure_jail         Use the secure jail for each bot (*nix only)
+  --fill                Fill up extra player starts with last bot specified
+  -p POSITION, --position=POSITION
+                        Player position for first bot specified
+  --nolaunch            Prevent visualizer from launching
+
+  Game Options:
+    Options that affect the game mechanics for ants
+
+    --attack=ATTACK     Attack method to use for engine. (closest, focus,
+                        support, damage)
+    --kill_points=KILL_POINTS
+                        Points awarded for killing a hill
+    --food=FOOD         Food spawning method. (none, random, sections,
+                        symmetric)
+    --viewradius2=VIEWRADIUS2
+                        Vision radius of ants squared
+    --spawnradius2=SPAWNRADIUS2
+                        Spawn radius of ants squared
+    --attackradius2=ATTACKRADIUS2
+                        Attack radius of ants squared
+    --food_rate=FOOD_RATE
+                        Numerator of food per turn per player rate
+    --food_turn=FOOD_TURN
+                        Denominator of food per turn per player rate
+    --food_start=FOOD_START
+                        One over percentage of land area filled with food at
+                        start
+    --food_visible=FOOD_VISIBLE
+                        Amount of food guaranteed to be visible to starting
+                        ants
+    --cutoff_turn=CUTOFF_TURN
+                        Number of turns cutoff percentage is maintained to end
+                        game early
+    --cutoff_percent=CUTOFF_PERCENT
+                        Number of turns cutoff percentage is maintained to end
+                        game early
+    --scenario
+
+  Logging Options:
+    Options that control the logging
+
+    -g GAME_ID, --game=GAME_ID
+                        game id to start at when numbering log files
+    -l LOG_DIR, --log_dir=LOG_DIR
+                        Directory to dump replay files to.
+    -R, --log_replay
+    -S, --log_stream
+    -I, --log_input     Log input streams sent to bots
+    -O, --log_output    Log output streams from bots
+    -E, --log_error     log error streams from bots
+    -e, --log_stderr    additionally log bot errors to stderr
+    -o, --log_stdout    additionally log replay/stream to stdout
+    -v, --verbose       Print out status as game goes.
+    --profile           Run under the python profiler
+    --html=HTML_FILE    Output file name for an html replay
