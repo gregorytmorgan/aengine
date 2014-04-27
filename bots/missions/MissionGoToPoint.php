@@ -132,23 +132,17 @@ $mission->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant
 		}
 		
 		// use old game passable for now.  Future, use terrianMap?
-		$passable = $game->passable($nextPt[0], $nextPt[1])     ;
-		
-		
-		
-		
-		
-$this->logger->write("PASS --------------- : " . (int)$passable);
-		
-		
-		
-		
-		
+		$passable = $game->passable($nextPt[0], $nextPt[1]);
+
+		if (!$passable) {
+			array_unshift($this->path, $nextPt);
+		}
+
 		
 		if (!$passable && $game->mapGet(array($nextPt[0], $nextPt[1])) === Ants::MY_ANT) {
 			
-			$this->logger->write(sprintf("Deferring %s more to point (%d, %d).", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
-			
+			$this->logger->write(sprintf("Deferring %s move to point (%d, %d).", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION);
+
 			// if it's not passable because one of my ants, defer
 			// $defer = ['ant' => ant, 'status' => status, 'value' => data, 'move' => array(r,c) ]
 			return array(
@@ -174,14 +168,12 @@ $this->logger->write("PASS --------------- : " . (int)$passable);
 			);
 		}
 
-		$this->logger->write(sprintf("%s  Path point (%d, %d) blocked.", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
+		$this->logger->write(sprintf("%s point (%d, %d) blocked.", $this->name, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
 
 		// for some reason the path is blocked - another ant?, put the point
 		// back on the path and wait a turn.  After that?  Recalc?  Solution
 		// needs to avoid deadlock.
 		$this->stuck++;
-
-		array_unshift($this->path, $nextPt);
 
 		$this->logger->write(sprintf("%s Path (%d, %d) blocked.", $this, $nextPt[0], $nextPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_WARN);
 

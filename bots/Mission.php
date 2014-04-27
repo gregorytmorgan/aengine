@@ -3,6 +3,7 @@
 require_once 'State.php';
 require_once 'missions/MissionGoToPoint.php';
 require_once 'missions/MissionPatrol.php';
+require_once 'missions/MissionGatherFood.php';
 
 /**
  * Ant mission - simple state machine for ant actions.
@@ -104,7 +105,9 @@ class Mission {
 		);
 
 		$this->logger->write(sprintf("%s Initialized", $this), AntLogger::LOG_MISSION);
-		
+
+		$this->basePattern = rand(0, 3);
+
 		Mission::$instance++;
 	}
 
@@ -256,7 +259,7 @@ class Mission {
 			);
 		}
 
-		$nextPt = $nextMove['move'];
+		$nextPt = $game->gridWrap($nextMove['move']);
 		
 		// direction will be an empty array if pt0 == pt1
 		$direction = $game->direction($ant->row, $ant->col, $nextPt[0], $nextPt[1]);
@@ -306,8 +309,12 @@ class Mission {
 			array($ant->row, $ant->col - 1)		// w
 		);
 
+		$pattern = $this->basePattern;
+
 		for ($i = 0; $i < 4; $i++) {
-			$nextPt = $directions[$i];
+
+			$nextPt = $directions[($i + $pattern) % 4];
+
 			if ($game->passable($nextPt[0], $nextPt[1])) {
 				return array(
 					'ant' => $ant,
@@ -316,6 +323,8 @@ class Mission {
 					'move' => array($nextPt[0], $nextPt[1])
 				);
 			}
+
+			$this->basePattern++;
 		}
 
 		// for some reason the path is blocked

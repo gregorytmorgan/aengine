@@ -18,9 +18,8 @@ require_once "Map.php";
 //define('WATER', -5);	
 //define('UNSEEN', -6);
 
-
-
-define('DEBUG_LEVEL', AntLogger::LOG_ALL);
+//define('DEBUG_LEVEL', AntLogger::LOG_ALL);
+define('DEBUG_LEVEL', AntLogger::LOG_MAPDUMP + AntLogger::LOG_GAME_FLOW + AntLogger::LOG_INPUT + AntLogger::LOG_OUTPUT); //   - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
 
 /**
  * Ants
@@ -133,13 +132,18 @@ class Ants {
 		$this->gameStartTime = (float)$sec + (float)$usec;
 		
 		$this->logger = new AntLogger(array(
-			'logLevel' =>  DEBUG_LEVEL  // - AntLogger::LOG_INPUT - AntLogger::LOG_OUTPUT - AntLogger::LOG_MAPDUMP
+			'logLevel' => DEBUG_LEVEL
 		));
 	}
 	
     public function issueOrder($aRow, $aCol, $direction) {
-		$this->logger->write(sprintf("Raw output: o %s %s %s", $aRow, $aCol, $direction), AntLogger::LOG_OUTPUT);
-        printf("o %s %s %s\n", $aRow, $aCol, $direction);
+
+
+		$pt = $this->gridWrap(array($aRow, $aCol));
+
+
+		$this->logger->write(sprintf("Raw output: o %d %d %s", $pt[0], $pt[1], $direction), AntLogger::LOG_OUTPUT);
+        printf("o %d %d %s\n", $pt[0], $pt[1], $direction);
         flush();
     }
 
@@ -218,8 +222,8 @@ class Ants {
         }
         $this->enemyAnts = array();
 
-        foreach ($this->deadAnts as $deadAnt) {
-            list($row, $col) = (is_array($deadAnt)) ? $deadAnt : $ant->pos;
+        foreach ($this->deadAnts as $deadAnt) {	
+            list($row, $col) = (is_array($deadAnt)) ? $ant : $deadAnt->pos;
             $this->mapSet($row, $col, Ants::LAND);
         }
         $this->deadAnts = array();
@@ -278,7 +282,7 @@ class Ants {
 
 						if ($idx !== false) {
 							// food = [row, col, lastKnowTurn]
-							$this->food[$idx][2] = $this->turn;
+							$this->food[$idx][2] = $this->turn; // update food lastKnownTurn
 						} else {
 							$idx = $this->lookupTargetedFood(array($row, $col));
 					
@@ -292,15 +296,19 @@ class Ants {
                         $this->mapSet($row, $col, Ants::WATER);
 						$this->terrainMap->set(array($row, $col), Ants::WATER);
                     } elseif ($tokens[0] == 'd') {			// dead ant, format: d row col owner
+						
 						$this->terrainMap->set(array($row, $col), Ants::LAND);
-						$owner = (int)$tokens[3];
-						//$ant = $this->lookupAnt($row, $col);
-						if ($owner) {
-							$this->logger->write(sprintf("<GREEN>KILLED: (%d, %d)</GREEN>", $row, $col), AntLogger::LOG_GAME_FLOW);
+						
+						$owner = (int)$tokens[3];				
+						
+						$hiveOwner = $this->isHive($row, $col);
+						if ($hiveOwner === false) {
+							$this->mapSet($row, $col, Ants::LAND);
 						} else {
-							$this->logger->write(sprintf("<RED>CASUALTY: %s</RED>", $ant), AntLogger::LOG_GAME_FLOW);
+							$this->mapSet($row, $col, $owner);
 						}
-						$this->killAnt($ant);
+
+						$this->killAnt(array($row, $col), $owner); // add to deadAnts
                     } elseif ($tokens[0] == 'h') {			// h = hill, format: w row col owner
                         $owner = (int)$tokens[3];
                         if ($owner === 0) {
@@ -332,6 +340,11 @@ class Ants {
 	$this->logger->write("Food at " . $this->food[$i][0] . "," . $this->food[$i][1] . " is gone.", AntLogger::LOG_GAME_FLOW);
 
 				array_splice($this->food, $i, 1);
+
+				// update the meta map
+				if ($this->mapGet(array($this->food[$i][0], $this->food[$i][1])) === Ants::FOOD) {
+					$this->mapSet(array($this->food[$i][0], $this->food[$i][1]), Ants::LAND);
+				}
 			}
 			$i--;
 			$len--;
@@ -342,6 +355,11 @@ class Ants {
 			if ($this->foodTargets[$i][2] !== $this->turn) {
 
 				$this->logger->write("Food at " . $this->foodTargets[$i][0] . "," . $this->foodTargets[$i][1] . " being gathered by ant id " . $this->foodTargets[$i][3] . " is stale. LastKnownTurn: " . 	$this->foodTargets[$i][2], AntLogger::LOG_GAME_FLOW);
+
+				// update the meta map
+				if ($this->mapGet(array( $this->foodTargets[$i][0],  $this->foodTargets[$i][1])) === Ants::FOOD) {
+					$this->mapSet(array( $this->foodTargets[$i][0],  $this->foodTargets[$i][1]), Ants::LAND);
+				}
 
 				// foodTargets = [row, col, lastKnownTurn, antId]
 				$ant = $this->lookupAntById($this->foodTargets[$i][3]);
@@ -367,26 +385,81 @@ class Ants {
 			} // bad food
 		}
 
-		$this->logger->write("Reconciling tracked items ... done.", AntLogger::LOG_GAME_FLOW);
+		if ($myAntCount === count($this->myAnts)) {
+			$this->logger->write("Ant count - ok.", AntLogger::LOG_GAME_FLOW);
+		} else {
+			$this->logger->write("Ant count - error.  Server says:" . $myAntCount . " Game count:" . count($this->myAnts), AntLogger::LOG_ERROR);
+			$this->dumpAnts(AntLogger::LOG_ERROR);
+		}
 
-		$this->logger->write("Mission planning started ...", AntLogger::LOG_GAME_FLOW);
+		$this->logger->write("Reconciling tracked items ... done.", AntLogger::LOG_GAME_FLOW);
 
 		//
 		// Mission Planning
 		//
 		// For any ant with a default mission (or none) then reassign to gather food
 		//
+
+		$this->logger->write("Mission planning started ...", AntLogger::LOG_GAME_FLOW);
+
+		// missions
+		// - defend point
+		// - defend space
+		// - rally to point
+		// - attact
+		// - scout
+
+		// $this->updateMissions() ... based on game state/turn and the percentages of assigned missions
+//		$missions = array();
+//
+//		while (!empty($missions) ) {
+//
+//			$nextMission =  array_shift($missions);
+//
+//			$assigned = false;
+//			foreach ($this->myAnts as $antKey => $ant) {
+//				if ($ant->mission->priority < $nextMission->priority) {
+//					$nextMissionClassName = getClass($nextMission);
+//					$missionConfig = $nextMissionClassName::setup($this, $ant, $this->terrainMap /* others? */);
+//
+////					$ant->mission = new $nextMissionClassName(array(
+////						'debug' => DEBUG_LEVEL,
+////						'game' => $this,
+////						'startPt' => $ant->pos,
+////						'goalPt' => $pair['food'],
+////						'terrainMap' => $this->terrainMap
+////					));
+//
+//					$ant->mission = new $nextMissionClassName($missionConfig);
+//
+//					unset($this->myAnts[$antKey]); // or splice
+//
+//					$assigned = true;
+//					break;
+//				}
+//			} // each ant
+//
+//			if (!$assigned) {
+//				array_shift($missions, $nextMission);
+//			}
+//
+//		} // while missions
+
+
+
+		//
+		// start future $this->updateMissions()
+		//
+
 		$needsMission = array();
-		foreach ($this->myAnts as $antIdx => $ant) {
+		foreach ($this->myAnts as $ant) {
 			if (get_class($ant->mission) === 'Mission') {
-
-//$this->logger->write($ant->name . " has a mission of " . get_class($ant->mission), AntLogger::LOG_GAME_FLOW);
-
 				$needsMission[] = $ant;
 			}
 		}
 
 		$this->logger->write("Remissioning " . count($needsMission) . " ants", AntLogger::LOG_GAME_FLOW);
+
 
 		$antFoodMissionPairs = $this->getBestFoodTargets($needsMission);
 
@@ -415,6 +488,12 @@ class Ants {
 
 		$this->logger->write("Mission planning ... done.", AntLogger::LOG_GAME_FLOW);
 
+		//
+		// end future $this->updateMissions()
+		//
+
+
+
 		$this->dumpMap(AntLogger::LOG_MAPDUMP);
 		//$this->logger->write("Terrian Map:", AntLogger::LOG_MAPDUMP);
 		//$this->logger->write($this->terrainMap, AntLogger::LOG_MAPDUMP);
@@ -426,10 +505,10 @@ class Ants {
 		}
 		$this->logger->write(" Targeted food: " . (($str) ? $str : '0'), AntLogger::LOG_GAME_FLOW);
 		
-		if ($myAntCount !== count($this->myAnts)) {
-			$this->logger->write("Ant count error.  Server says:" . $myAntCount . " Game count:" . count($this->myAnts), AntLogger::LOG_ERROR);
-			$this->dumpAnts(AntLogger::LOG_ERROR);
-		}
+
+
+		// end food gathering
+
 
 		$this->logger->write("Update processing for turn " . $this->turn . " complete", AntLogger::LOG_GAME_FLOW);
     }
@@ -721,11 +800,11 @@ $this->logger->write(sprintf("Ants.passable(%d,%d) = %d, result:%d", $row, $col,
 		// assign phase after process game data, then assign bests
 	
 		return array_pop($this->food);
-	}
-	
+	}	
+
 	/**
 	 * getFoodTarget - simple ant/food matching
-	 * 
+	 *
 	 * @param type $pt
 	 * @return array Return a food point
 	 */
@@ -777,8 +856,8 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 		}
 
 		return $result;
-	}	
-	
+	}
+
 
 	/**
 	 * Lookup one of my ants based on it's position.
@@ -820,30 +899,43 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 	/**
 	 * Move an ant to the deadAnts list. Set state to dead if frendly.
 	 *
-	 * @param object|array $ant Takes an Ant object or simple point identifier.
+	 * @param Ant $ant Takes an Ant object.
 	 * @return boolean Return true on success, false otherwise.
 	 */
-	public function killAnt($ant) {
+	public function killAnt($deadAnt, $owner) {
 
 //$this->logger->write('killAnt - entry ' . $ant->row. ',' . $ant->col);
 
-		if (empty($this->myAnts)) {
-			return false;
-		}
+		$found = false;
 
-		for ($i = 0, $len = count($this->myAnts); $i < $len; $i++) {
-			$ant = $this->myAnts[$i];
-			if ($ant->row === $row && $ant->col == $col) {
-				//$ant->mission->setState('dead');
-				array_splice($this->myAnts, $i, 1);
-				$this->deadAnts[] = $ant;
-				return true;
+		if ($owner === 0) {
+			for ($i = 0, $len = count($this->myAnts); $i < $len; $i++) {
+				$ant = $this->myAnts[$i];
+				if ($ant->row === $deadAnt[0] && $ant->col === $deadAnt[1]) {
+					//$ant->mission->setState('dead');
+					array_splice($this->myAnts, $i, 1);
+					$this->deadAnts[] = $ant;
+					$found = true;
+					break;
+				}
 			}
+			$this->logger->write(sprintf("<RED>CASUALTY: (%d, %d) %s</RED>", $deadAnt[0], $deadAnt[1], (($ant) ? $ant->name : 'Lost')), AntLogger::LOG_GAME_FLOW);
+		} else {
+			for ($i = 0, $len = count($this->enemyAnts); $i < $len; $i++) {
+				$ant = $this->enemyAnts[$i];
+				if ($ant[0] === $deadAnt[0] &&  $ant[1] === $deadAnt[1]) {
+					array_splice($this->enemyAnts, $i, 1);
+					$this->deadAnts[] = $ant;
+					$found = true;
+					break;
+				}
+			}
+			$this->logger->write(sprintf("<GREEN>KILLED: (%d, %d)</GREEN>", $deadAnt[0], $deadAnt[1]), AntLogger::LOG_GAME_FLOW);
 		}
-
+		
 //$this->logger->write('killAnt - Ant ' . $ant->row. ',' . $ant->col . ' NOT found.');
 
-		return false;
+		return $found;
 	}
 
 
@@ -885,6 +977,9 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 	 * @param Ant $bot
 	 */
     public function dumpMap($grp = AntLogger::LOG_ALL) {
+
+		$raw = false; // for debugging for now
+
 		for ($i = -1, $ilen = count($this->map); $i < $ilen; $i++) {
 			if ($i === -1) {
 				$this->logger->write("  ", $grp, array('noEndline' => true));
@@ -899,44 +994,49 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 					$this->logger->write(sprintf("%s", (strlen($i) < 2) ? ($i . ' ') : ($i . '')), $grp, array('noEndline' => true));
 					continue;
 				}
-				switch ($this->map[$i][$j]) {
-					case Ants::DEAD:
-						$char = '!';
-						break;
-					case Ants::LAND:
-						$owner = $this->isHive($i, $j);
-						if ($owner === false) {
-							$char = '.';
-						} else {
-							$char = $owner;
-						}
-						break;
-					case Ants::FOOD:
-						$char = '*';
-						break;
-					case Ants::WATER:
-						$char = '%';
-						break;
-					case Ants::UNSEEN:
-						$char = '?';
-						break;
-					default:
-						$char = $this->map[$i][$j];
-						if (is_numeric($char)) {
-							if ($this->isHive($i, $j)) {
-								$char = strtoupper(mb_substr(self::Alpha, (int)$char, 1));
+				if ($raw) {
+					$char = $this->map[$i][$j];
+				} else {
+					switch ($this->map[$i][$j]) {
+						case Ants::DEAD:
+							$char = '!';
+							break;
+						case Ants::LAND:
+							$owner = $this->isHive($i, $j);
+							if ($owner === false) {
+								$char = '.';
 							} else {
-								$char = mb_substr(self::Alpha, (int)$char, 1);
+								$char = $owner; // hive with no ant
 							}
-						} else {
-							$this->logger->write('DOES THIS OCCUR ????????????????????????????????????????????????????????????');
+							break;
+						case Ants::FOOD:
+							$char = '*';
+							break;
+						case Ants::WATER:
+							$char = '%';
+							break;
+						case Ants::UNSEEN:
+							$char = '?';
+							break;
+						default:
 							$char = $this->map[$i][$j];
-						}
+							if (is_numeric($char)) {
+								if ($this->isHive($i, $j) === false) {
+									$char = mb_substr(self::Alpha, (int)$char, 1); // ant not on hive
+								} else {
+									$char = strtoupper(mb_substr(self::Alpha, (int)$char, 1)); // Ant on hive
+								}
+							} else {
+								$this->logger->write('DOES THIS OCCUR ????????????????????????????????????????????????????????????');
+								$char = $this->map[$i][$j];
+							}
+					}
 				}
-				
+
 				if (strlen((string)$char) < 2) {
 					$char = ' ' . $char;
 				}
+
 				$this->logger->write($char, $grp, array('noEndline' => true));
 
 			} // for j
@@ -1060,7 +1160,7 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 	/**
 	 * gridWrap
 	 *
-	 * @param array $pt
+	 * @param array $pt Point
 	 * @return array
 	 */
 	public function gridWrap($pt) {
