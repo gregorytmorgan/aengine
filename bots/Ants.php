@@ -367,7 +367,7 @@ class Ants {
 				if ($ant) {
 					
 					$this->logger->write("Food at " . $this->foodTargets[$i][0] . "," . $this->foodTargets[$i][1] . " being gathered by ant " . $ant->name . " is gone.  Resetting mission", AntLogger::LOG_GAME_FLOW);
-					
+
 					// give the default mission if no food, we'll reassign a better one later
 					$ant->mission = new Mission(array(
 						'debug' => DEBUG_LEVEL,
@@ -409,10 +409,11 @@ class Ants {
 		// - attact
 		// - scout
 
-		// $this->updateMissions() ... based on game state/turn and the percentages of assigned missions
+		// [name => 'hunt|gather|scout']
+		$missions = $this->getMissions(); // ... based on game state/turn and the percentages of assigned missions
 //		$missions = array();
-//
-//		while (!empty($missions) ) {
+
+//		while (!empty($missions)) {
 //
 //			$nextMission =  array_shift($missions);
 //
@@ -470,7 +471,7 @@ class Ants {
 
 			$ant = $this->lookupAntById($pair['ant']->id);
 
-			$ant->mission = new MissionGoToPoint(array(
+			$ant->mission = new MissionGatherFood(array(
 				'debug' => DEBUG_LEVEL,
 				'game' => $this,
 				'startPt' => $ant->pos,
@@ -1174,6 +1175,23 @@ $this->logger->write('finding best food target for ant ' . $af['ant']->name);
 		);
 	}	
 	
+	/**
+	 * 
+	 */
+	public function	getMissions() {
+
+		$missionList = array();
+
+
+
+		array('name' => 'MissionGatherFood');
+
+		return array(
+
+		)
+
+	}
+
 	/**
 	 * Main game loop
 	 *
