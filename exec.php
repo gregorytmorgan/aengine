@@ -1,14 +1,22 @@
 <?php
+/**
+ * Execute a system command
+ */
 
-$cmd = (  isset($argv[1])  ) ? $argv[1] : false;
+if (count($argv) <= 1) {
+  echo "ERROR - no command";
+  exit();	
+} 
+
+unset($argv[0]);
+
+$cmd = implode(" ", $argv);
 
 $output = array();
+$retval = null;
 
-if ($cmd) {
-    echo exec($cmd, $output, $retval);
-    echo implode("\n", $output);
-} else {
-    echo 'no command';
-}
+exec($cmd, $output, $retval);
 
-echo "Done";
+echo implode("\n", $output);
+
+>>>>>>> 6bb18c724215055b6608cf1a08eb83b00f7caa5a

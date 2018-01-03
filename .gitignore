@@ -1,0 +1,11 @@
+*.pyc
+*.log
+/tools/*.pyc
+/tools/game_logs
+/tools/visualizer
+/tools/submission_test
+
+/nbproject
+/logs
+/bots/bot_logs
+
