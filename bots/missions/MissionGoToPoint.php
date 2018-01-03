@@ -88,20 +88,17 @@ $mission->logger->write(sprintf('Move state test, ant(%d,%d), goal(%d,%d)', $ant
 	 * @return boolean
 	 */
 	function init (Ant $ant, Mission $mission, Ants $game) {
-
-//$this->logger->write(sprintf("Mission init 1 %d,%d  %d,%d-------------------------------------------",$ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]));
-
 		$path = $game->terrainMap->findPath(array($ant->row, $ant->col), $this->goalPt);
 
 		if (!$path) {
 			$this->logger->write(sprintf("State init - pathFind failed for (%d,%d) to (%d,%d)  Using current point.", $ant->row, $ant->col, $this->goalPt[0], $this->goalPt[1]), AntLogger::LOG_MISSION | AntLogger::LOG_ERROR);
-			//$path = array(array($ant->row, $ant->col));
 			$this->path = false;
 		}
 
-//$this->logger->write('path: ' . var_export($path, true));
-
 		$this->path = $path;
+
+		// don't waste a whole move on init.
+		$this->move($ant, $mission, $game);
 	}
 
 	/**
