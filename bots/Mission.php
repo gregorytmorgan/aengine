@@ -22,7 +22,9 @@ class Mission {
 
 	public $logger;
 	
-	protected $debug;	
+	protected $debug;
+
+	public $priority;  // low number = low priority, default = 0
 
 	/**
 	 * The initial state of the Mission - so we can Mission.reset()
@@ -88,6 +90,7 @@ class Mission {
 		$this->name = (isset($args['name'])) ?  $args['name'] : get_class($this) . ' #' . Mission::$instance;
 		$this->debug = (isset($args['debug'])) ?  $args['debug'] : self::DEBUG_LEVEL_DEFAULT;
 		$this->game = (isset($args['game'])) ?  $args['game'] : self::DEBUG_LEVEL_DEFAULT;
+		$this->priority = (isset($args['priority'])) ?  $args['priority'] : 0;
 		
 		$this->logger = new AntLogger(array(
 			'logLevel' => $this->debug
